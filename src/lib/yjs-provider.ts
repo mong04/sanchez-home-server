@@ -24,12 +24,11 @@ if (persistence) {
 // Note: We cast to any to avoid potential strict type issues with the provider library options if needed,
 // but usually it works fine.
 // [DEV NOTE]: Password encryption requires a Secure Context (HTTPS/Localhost).
-// To allow LAN testing on HTTP (e.g., 192.168.x.x), we disable it temporarily.
+// To allow LAN testing on HTTP (e.g., 192.168.x.x), we automatically disable it in DEV.
 // WebRTC still provides DTLS transport security.
-const ENABLE_ENCRYPTION = false;
 
 export const provider = new WebrtcProvider(SYNC_CONFIG.ROOM_NAME, doc, {
-    password: ENABLE_ENCRYPTION ? SYNC_CONFIG.SYNC_PASSWORD : undefined,
+    password: SYNC_CONFIG.ENABLE_ENCRYPTION ? SYNC_CONFIG.SYNC_PASSWORD : undefined,
     // Cast to mutable array to satisfy y-webrtc types
     signaling: [...SYNC_CONFIG.SIGNALING_URLS]
 });

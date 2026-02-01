@@ -15,7 +15,8 @@ export const SYNC_CONFIG = {
         : [
             'wss://signaling.yjs.dev',
             'wss://y-webrtc-signaling-eu.herokuapp.com',
-            'wss://y-webrtc-signaling-us.herokuapp.com'
+            'wss://y-webrtc-signaling-us.herokuapp.com',
+            'wss://y-webrtc-eu.fly.dev'
         ],
 
     ENABLE_ENCRYPTION: !isDev,

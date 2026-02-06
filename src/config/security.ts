@@ -2,7 +2,7 @@ export const SECURITY_CONFIG = {
     // Content Security Policy directives
     CSP: {
         DEFAULT_SRC: "'self'",
-        CONNECT_SRC: "'self' ws://localhost:* wss://signaling.yjs.dev",
+        CONNECT_SRC: "'self' ws://localhost:* wss://signaling.yjs.dev wss://sanchez-family-os-sync.mong04.partykit.dev https://sanchez-family-os-sync.mong04.partykit.dev",
         STYLE_SRC: "'self' 'unsafe-inline'",
         SCRIPT_SRC: "'self' 'unsafe-inline'", // Required for some dev tooling
         IMG_SRC: "'self' data: blob:",

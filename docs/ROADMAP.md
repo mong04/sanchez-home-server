@@ -30,14 +30,19 @@
     - [x] Create Tester Agent if needed.
 
 - **Phase 8b: E2E Verification & Resilience (Auditor Remediation)**
-    - [ ] **Tooling**: Install Playwright & Config.
-    - [ ] **Test Suite**: Multi-device sync scenarios (Phone <-> Tablet).
-    - [ ] **Infrastructure**: Local Signaling Server for offline resilience.
-    - [ ] **Validation**: Verify sync works without WAN.
+    - [x] **Tooling**: Install Playwright & Config.
+    - [x] **Test Suite**: Multi-device sync scenarios (Phone <-> Tablet).
+    - [x] **Infrastructure**: Local Signaling Server for offline resilience.
+    - [x] **Validation**: Verify sync works without WAN.
+
+- **Phase 8c: Infrastructure & UI Overhaul**
+    - [x] **Sync Architecture**: Migrated to PartyKit (WebSocket) for improved reliability.
+    - [x] **UI/UX**: Full Theming (Dark/Light) and WCAG 2.2 AA Compliance.
+    - [x] **Project Structure**: Updated component library with semantic tokens.
 
 - **Phase 9: Security & Privacy Audit**
-    - [ ] Vulnerability scans, privacy reviews, backup testing.
-    - [ ] Create Auditor Agent.
+    - [x] Vulnerability scans, privacy reviews, backup testing.
+    - [x] Create Auditor Agent.
 
 - **Phase 10: Beta Iteration & UX Refinements**
     - [ ] Family beta testing, feedback integration, A/B variants, accessibility checks.
@@ -46,3 +51,20 @@
 - **Phase 11: Launch Prep & Monitoring**
     - [ ] Staged deployment, onboarding docs, monitoring setup, release notes.
     - [ ] Final Go for launch.
+
+## 🛠 Recommended Agent Skills
+To accelerate the remaining phases, I have identified the following high-value skills from the [Awesome Agent Skills](https://github.com/VoltAgent/awesome-agent-skills) repository:
+
+### For Phase 9 (Security Audit)
+- **`trailofbits/static-analysis`**: Deployment of CodeQL and Semgrep for deep vulnerability scanning.
+- **`trailofbits/insecure-defaults`**: Detection of hardcoded secrets or weak configurations.
+- **`trailofbits/ask-questions-if-underspecified`**: Ensures requirements are clear before auditing.
+
+### For Phase 10 (Beta & UX)
+- **`anthropics/webapp-testing`**: Automation of Playwright scenarios for regression testing.
+- **`shpigford/screenshots`**: Generating consistent viewport screenshots for documentation and visual verification.
+- **`ehmo/platform-design-skills`**: verification of Accessibility/Touch targets against Apple/Material guidelines for PWA.
+
+### General Engineering
+- **`vercel-labs/react-best-practices`**: Enforcing consistent patterns during refactors.
+- **`composiohq/changelog-generator`**: Automating the release notes for Phase 11.

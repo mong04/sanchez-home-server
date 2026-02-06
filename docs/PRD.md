@@ -18,7 +18,7 @@ Transform family life by minimizing chaos and enhancing well-being.
 
 ## 3. Technical Requirements
 - **Stack**: React + Tailwind CSS.
-- **Data Layer**: Yjs (CRDTs) + `y-indexeddb` (Local Persistence) + `y-webrtc` (P2P Sync).
+- **Data Layer**: Yjs (CRDTs) + `y-indexeddb` (Local Persistence) + `y-partykit` (WebSocket Sync).
 - **Security**: Local-only data. No external analytics/trackers.
 - **Performance**: <1s TTI. Retry budgets for network calls.
 - **Devices**: 
@@ -32,7 +32,7 @@ Transform family life by minimizing chaos and enhancing well-being.
 
 ## 5. Roadmap
 See [ROADMAP.md](./ROADMAP.md) for the detailed 11-Phase execution plan.
-- **Current Status**: Executing **Phase 9** (Security & Privacy Audit).
+- **Current Status**: Executing **Phase 10** (Beta Iteration & UX Refinements).
 
 ### Remaining Phases
 - **Phase 6**: Feature Implementation - Chore & Finance Manager. (Completed)

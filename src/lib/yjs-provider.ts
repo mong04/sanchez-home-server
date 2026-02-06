@@ -1,6 +1,6 @@
 import * as Y from 'yjs';
 import { IndexeddbPersistence } from 'y-indexeddb';
-import { WebrtcProvider } from 'y-webrtc';
+import YPartyKitProvider from "y-partykit/provider";
 import { SYNC_CONFIG } from '../config/sync';
 import type { InfinityLogItem, Chore, Bill, ShoppingItem, CalendarEvent, WellnessEntry, Message } from '../types/schema';
 
@@ -19,19 +19,13 @@ if (persistence) {
     });
 }
 
-// 3. Configure WebRTC Provider (P2P Sync)
-// This connects to other peers in the same room
-// Note: We cast to any to avoid potential strict type issues with the provider library options if needed,
-// but usually it works fine.
-// [DEV NOTE]: Password encryption requires a Secure Context (HTTPS/Localhost).
-// To allow LAN testing on HTTP (e.g., 192.168.x.x), we automatically disable it in DEV.
-// WebRTC still provides DTLS transport security.
-
-export const provider = new WebrtcProvider(SYNC_CONFIG.ROOM_NAME, doc, {
-    password: SYNC_CONFIG.ENABLE_ENCRYPTION ? SYNC_CONFIG.SYNC_PASSWORD : undefined,
-    // Cast to mutable array to satisfy y-webrtc types
-    signaling: [...SYNC_CONFIG.SIGNALING_URLS]
-});
+// 3. Configure PartyKit Provider (WebSocket Sync)
+// This connects to the PartyKit server (Managed WebSocket)
+export const provider = new YPartyKitProvider(
+    SYNC_CONFIG.PARTYKIT_HOST,
+    SYNC_CONFIG.ROOM_NAME,
+    doc
+);
 
 provider.on('status', (event: { connected: boolean }) => {
     console.log(`📡 [Yjs] WebRTC status: ${event.connected ? 'connected' : 'disconnected'}`);

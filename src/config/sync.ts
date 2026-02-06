@@ -8,16 +8,11 @@ export const SYNC_CONFIG = {
     // For now, consistent local password for the family.
     SYNC_PASSWORD: 'family-secure-local',
 
-    // PROD: Use secure public signaling servers + Encryption
-    // DEV: Use local signaling server + No Encryption (to allow HTTP)
-    SIGNALING_URLS: isDev
-        ? ['ws://localhost:4444']
-        : [
-            'wss://signaling.yjs.dev',
-            'wss://y-webrtc-signaling-eu.herokuapp.com',
-            'wss://y-webrtc-signaling-us.herokuapp.com',
-            'wss://y-webrtc-eu.fly.dev'
-        ],
+    // PROD: Use PartyKit Cloud
+    // DEV: Use local PartyKit server (127.0.0.1:1999)
+    PARTYKIT_HOST: isDev
+        ? '127.0.0.1:1999'
+        : 'sanchez-family-os-sync.mong04.partykit.dev',
 
     ENABLE_ENCRYPTION: !isDev,
 } as const;

@@ -1,0 +1,5 @@
+{
+    "name": "sanchez-family-os-sync",
+    "main": "src/server/partykit.ts",
+    "compatibilityDate": "2025-02-02"
+}

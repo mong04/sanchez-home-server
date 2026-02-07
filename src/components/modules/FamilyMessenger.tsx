@@ -38,7 +38,7 @@ export function FamilyMessenger() {
                 ) : (
                     <div className="flex flex-col space-y-4 max-w-3xl mx-auto w-full">
                         <AnimatePresence initial={false}>
-                            {messages.map((msg, index) => {
+                            {messages.map((msg) => {
                                 const isMe = msg.sender === 'User';
 
                                 return (

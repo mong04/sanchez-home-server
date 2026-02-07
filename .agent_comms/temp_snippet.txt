@@ -1,0 +1,10 @@
+                    <div className="relative flex-1">
+                        <Input
+                            label="Item Name"
+                            id="shopping-item"
+                            value={newItem}
+                            onChange={e => setNewItem(e.target.value)}
+                            placeholder="Add item (e.g. Milk)"
+                            className="w-full"
+                        />
+                    </div>

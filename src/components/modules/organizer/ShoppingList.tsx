@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useShoppingList } from '../../../hooks/use-organizer';
 import { AccessibleButton } from '../../common/AccessibleButton';
+import { ShoppingCart } from 'lucide-react';
+import { Input } from '../../common/Input';
 
 export function ShoppingList() {
     const { items, addItem, toggleItem, clearCompleted } = useShoppingList();
@@ -36,14 +38,13 @@ export function ShoppingList() {
             <div className="flex flex-col md:flex-row gap-4 items-start">
                 <form onSubmit={handleAdd} className="flex-1 w-full flex gap-2">
                     <div className="relative flex-1">
-                        <label htmlFor="shopping-item" className="sr-only">Item Name</label>
-                        <input
+                        <Input
                             id="shopping-item"
-                            type="text"
                             value={newItem}
                             onChange={e => setNewItem(e.target.value)}
-                            className="block w-full rounded-md border-input bg-background text-foreground shadow-sm focus:border-ring focus:ring-ring p-2"
                             placeholder="Add item (e.g. Milk)"
+                            className="w-full"
+                            aria-label="Item Name"
                         />
                     </div>
                     <AccessibleButton type="submit" label="Add Item">Add</AccessibleButton>
@@ -89,7 +90,17 @@ export function ShoppingList() {
                 <legend className="sr-only">Shopping List Items</legend>
                 <div className="bg-card rounded-lg shadow overflow-hidden divide-y divide-border">
                     {items.length === 0 ? (
-                        <div className="p-4 text-center text-muted-foreground">List is empty.</div>
+                        <div className="text-center py-16 flex flex-col items-center justify-center gap-3">
+                            <div className="p-4 rounded-full bg-background ring-1 ring-border shadow-sm">
+                                <ShoppingCart className="w-8 h-8 text-blue-500/50" />
+                            </div>
+                            <div className="space-y-1">
+                                <h3 className="font-semibold text-lg">Fridge full?</h3>
+                                <p className="text-muted-foreground max-w-sm mx-auto">
+                                    The list is empty. Add items above or scan a receipt to restock.
+                                </p>
+                            </div>
+                        </div>
                     ) : (
                         items.map(item => (
                             <div key={item.id} className="flex items-center p-4 hover:bg-accent/50 transition-colors">

@@ -1,168 +1,168 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useMessenger } from '../../hooks/use-messenger';
-import { compressImage } from '../../utils/image-compression';
-import { Camera, Send, Image as ImageIcon } from 'lucide-react';
+import { Button } from '../common/Button';
+import { Input } from '../common/Input';
+import { MessageSquare, Send, Image as ImageIcon, CheckCheck } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '../../lib/utils';
+import { format } from 'date-fns';
 
 export function FamilyMessenger() {
     const { messages, sendMessage } = useMessenger();
-    const [inputValue, setInputValue] = useState('');
-    const [isSending, setIsSending] = useState(false);
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const endOfMessagesRef = useRef<HTMLDivElement>(null);
+    const [inputText, setInputText] = useState('');
+    const scrollRef = useRef<HTMLDivElement>(null);
 
-    const scrollToBottom = () => {
-        endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth' });
-    };
-
+    // Auto-scroll to bottom
     useEffect(() => {
-        scrollToBottom();
+        if (scrollRef.current) {
+            scrollRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
     }, [messages]);
 
-    const handleSend = async () => {
-        if (!inputValue.trim()) return;
+    const handleSend = (e?: React.FormEvent) => {
+        e?.preventDefault();
+        if (!inputText.trim()) return;
 
-        try {
-            setIsSending(true);
-            sendMessage(inputValue);
-            setInputValue('');
-        } finally {
-            setIsSending(false);
-        }
-    };
-
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleSend();
-        }
-    };
-
-    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        try {
-            setIsSending(true);
-            const base64 = await compressImage(file);
-            sendMessage('Sent a photo', base64);
-        } catch (error) {
-            console.error('Failed to process image:', error);
-            alert('Failed to send image. It might be too large.');
-        } finally {
-            setIsSending(false);
-            if (fileInputRef.current) fileInputRef.current.value = '';
-        }
+        sendMessage(inputText.trim());
+        setInputText('');
     };
 
     return (
-        <div className="flex flex-col h-[calc(100vh-12rem)] bg-card rounded-xl shadow-sm border border-border overflow-hidden">
-            {/* Header */}
-            <div className="p-4 border-b border-border bg-muted/30 flex items-center justify-between">
-                <h2 className="font-bold text-foreground flex items-center gap-2">
-                    <span className="p-2 bg-primary/10 text-primary rounded-lg">
-                        <ImageIcon size={20} />
-                    </span>
-                    Family Messenger
-                </h2>
-                <div className="text-xs text-muted-foreground">
-                    Messages expire after 24 hours
-                </div>
-            </div>
+        <div className="flex flex-col h-full bg-background relative selection:bg-primary/20">
+            {/* Header (Optional, if not covered by AppLayout) - Keeping it clean for now */}
 
-            {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-background">
+            {/* Message Area */}
+            <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 space-y-6">
                 {messages.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                        <p>No messages yet.</p>
-                        <p className="text-sm">Start the conversation!</p>
-                    </div>
+                    <EmptyState />
                 ) : (
-                    messages.map((msg) => {
-                        const isMe = msg.sender === 'User'; // In real app, check ID
-                        return (
-                            <div
-                                key={msg.id}
-                                className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
-                            >
-                                <div
-                                    className={`
-                                        max-w-[75%] rounded-2xl p-3 shadow-sm
-                                        ${isMe
-                                            ? 'bg-primary text-primary-foreground rounded-br-none'
-                                            : 'bg-card border border-border text-card-foreground rounded-bl-none'
-                                        }
-                                    `}
-                                >
-                                    {msg.imageBase64 && (
-                                        <div className="mb-2 rounded-lg overflow-hidden border border-white/20">
-                                            <img
-                                                src={msg.imageBase64}
-                                                alt="Shared attachment"
-                                                className="max-h-60 w-auto object-cover"
-                                            />
+                    <div className="flex flex-col space-y-4 max-w-3xl mx-auto w-full">
+                        <AnimatePresence initial={false}>
+                            {messages.map((msg, index) => {
+                                const isMe = msg.sender === 'User';
+
+                                return (
+                                    <motion.div
+                                        key={msg.id}
+                                        initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        layout
+                                        className={cn(
+                                            "flex w-full",
+                                            isMe ? "justify-end" : "justify-start"
+                                        )}
+                                    >
+                                        <div className={cn(
+                                            "flex max-w-[85%] md:max-w-[70%] flex-col",
+                                            isMe ? "items-end" : "items-start"
+                                        )}>
+                                            <div className={cn(
+                                                "relative px-4 py-3 text-sm md:text-base shadow-sm break-words",
+                                                isMe
+                                                    ? "bg-primary text-primary-foreground rounded-2xl rounded-tr-sm"
+                                                    : "bg-secondary text-secondary-foreground rounded-2xl rounded-tl-sm"
+                                            )}>
+                                                {msg.text}
+                                                {msg.imageBase64 && (
+                                                    <img
+                                                        src={msg.imageBase64}
+                                                        alt="Attachment"
+                                                        className="mt-2 rounded-lg max-h-48 object-cover border border-black/10"
+                                                    />
+                                                )}
+                                            </div>
+
+                                            <div className="flex items-center gap-1 mt-1 px-1">
+                                                <span className="text-[10px] text-muted-foreground/60 font-medium">
+                                                    {format(msg.timestamp, 'h:mm a')}
+                                                </span>
+                                                {isMe && (
+                                                    <CheckCheck className="w-3 h-3 text-primary/60" />
+                                                )}
+                                            </div>
                                         </div>
-                                    )}
-                                    <p className="whitespace-pre-wrap">{msg.text}</p>
-                                    <div className={`
-                                        text-[10px] mt-1 text-right
-                                        ${isMe ? 'text-primary-foreground/80' : 'text-muted-foreground'}
-                                    `}>
-                                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })
+                                    </motion.div>
+                                );
+                            })}
+                        </AnimatePresence>
+                        <div ref={scrollRef} />
+                    </div>
                 )}
-                <div ref={endOfMessagesRef} />
             </div>
 
             {/* Input Area */}
-            <div className="p-4 bg-card border-t border-border">
-                <div className="flex gap-2 items-end">
-                    <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="p-3 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-xl transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
-                        title="Send Photo"
-                        disabled={isSending}
+            <div className="p-4 bg-background/80 backdrop-blur-lg border-t border-border sticky bottom-0 z-10 w-full">
+                <form
+                    onSubmit={handleSend}
+                    className="max-w-3xl mx-auto w-full flex items-end gap-2"
+                >
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="rounded-full text-muted-foreground hover:bg-secondary shrink-0"
+                        aria-label="Attach image"
                     >
-                        <Camera size={20} />
-                    </button>
-                    <input
-                        type="file"
-                        ref={fileInputRef}
-                        className="hidden"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                    />
+                        <ImageIcon className="w-5 h-5" />
+                    </Button>
 
                     <div className="flex-1 relative">
-                        <textarea
-                            value={inputValue}
-                            onChange={(e) => setInputValue(e.target.value)}
-                            onKeyDown={handleKeyDown}
+                        <Input
+                            value={inputText}
+                            onChange={(e) => setInputText(e.target.value)}
                             placeholder="Type a message..."
-                            className="w-full bg-input/10 border border-input rounded-xl px-4 py-3 pr-10 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent resize-none max-h-32"
-                            rows={1}
-                            disabled={isSending}
+                            className="w-full rounded-2xl pl-4 pr-12 min-h-[44px] py-2.5 border-muted-foreground/20 focus-visible:ring-primary/50 bg-secondary/30"
                         />
                     </div>
 
-                    <button
-                        onClick={handleSend}
-                        disabled={!inputValue.trim() || isSending}
-                        className={`
-                            p-3 rounded-xl transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none
-                            ${!inputValue.trim()
-                                ? 'bg-muted text-muted-foreground'
-                                : 'bg-primary text-primary-foreground shadow-md hover:bg-primary/90 active:scale-95'
-                            }
-                        `}
+                    <Button
+                        type="submit"
+                        size="icon"
+                        className={cn(
+                            "rounded-full shrink-0 h-11 w-11 transition-all duration-300 shadow-md",
+                            inputText.trim()
+                                ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105"
+                                : "bg-muted text-muted-foreground hover:bg-muted"
+                        )
+                        }
+                        disabled={!inputText.trim()}
+                        aria-label="Send message"
                     >
-                        <Send size={20} />
-                    </button>
-                </div>
+                        <Send className="w-5 h-5 ml-0.5" />
+                    </Button>
+                </form>
             </div>
+        </div>
+    );
+}
+
+function EmptyState() {
+    return (
+        <div className="h-full flex flex-col items-center justify-center text-center p-8 opacity-80 select-none">
+            <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.5, type: 'spring' }}
+                className="w-24 h-24 bg-gradient-to-br from-primary/20 to-secondary/30 rounded-3xl flex items-center justify-center mb-6 shadow-xl shadow-primary/5"
+            >
+                <MessageSquare className="w-10 h-10 text-primary" />
+            </motion.div>
+            <motion.h3
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className="text-xl font-bold text-foreground mb-2"
+            >
+                It's quiet in here...
+            </motion.h3>
+            <motion.p
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="text-muted-foreground max-w-xs text-sm leading-relaxed"
+            >
+                Be the first to say hello! Share a photo or send a message to the family.
+            </motion.p>
         </div>
     );
 }

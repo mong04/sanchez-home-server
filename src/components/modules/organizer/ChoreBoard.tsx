@@ -1,22 +1,24 @@
 import React, { useState } from 'react';
 import { useChores } from '../../../hooks/use-organizer';
 import { AccessibleButton } from '../../common/AccessibleButton';
+import { Sparkles } from 'lucide-react';
+import { Input } from '../../common/Input';
+import { TagInput } from '../../common/TagInput';
 
 export function ChoreBoard() {
     const { items: chores, addChore, rotateChore, deleteChore } = useChores();
     const [newTitle, setNewTitle] = useState('');
-    const [assignees, setAssignees] = useState('');
+    const [assignees, setAssignees] = useState<string[]>([]);
     const [points, setPoints] = useState(1);
     const [feedback, setFeedback] = useState('');
 
     const handleAdd = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newTitle.trim() || !assignees.trim()) return;
+        if (!newTitle.trim() || assignees.length === 0) return;
 
-        const assigneeList = assignees.split(',').map(s => s.trim()).filter(Boolean);
-        addChore(newTitle, assigneeList, 'weekly', Number(points));
+        addChore(newTitle, assignees, 'weekly', Number(points));
         setNewTitle('');
-        setAssignees('');
+        setAssignees([]);
         setFeedback(`Added chore: ${newTitle}`);
         setTimeout(() => setFeedback(''), 3000);
     };
@@ -48,36 +50,34 @@ export function ChoreBoard() {
                 <h3 className="text-lg font-medium text-card-foreground">Add New Chore</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label htmlFor="chore-title" className="block text-sm font-medium text-muted-foreground">Title</label>
-                        <input
+                        <Input
+                            label="Title"
                             id="chore-title"
-                            type="text"
                             value={newTitle}
                             onChange={e => setNewTitle(e.target.value)}
-                            className="mt-1 block w-full rounded-md border-input bg-background text-foreground shadow-sm focus:border-ring focus:ring-ring sm:text-sm"
                             placeholder="e.g. Empty Dishwasher"
+                            className="w-full"
                         />
                     </div>
                     <div>
-                        <label htmlFor="chore-assignees" className="block text-sm font-medium text-muted-foreground">Assignees (comma separated)</label>
-                        <input
-                            id="chore-assignees"
-                            type="text"
-                            value={assignees}
-                            onChange={e => setAssignees(e.target.value)}
-                            className="mt-1 block w-full rounded-md border-input bg-background text-foreground shadow-sm focus:border-ring focus:ring-ring sm:text-sm"
-                            placeholder="e.g. Mom, Dad, Kid"
+                        <TagInput
+                            label="Assignees"
+                            description="Press Enter to add person"
+                            tags={assignees}
+                            setTags={setAssignees}
+                            placeholder="e.g. Mom"
+                            className="w-full"
                         />
                     </div>
                     <div>
-                        <label htmlFor="chore-points" className="block text-sm font-medium text-muted-foreground">Points</label>
-                        <input
+                        <Input
+                            label="Points"
                             id="chore-points"
                             type="number"
                             value={points}
                             onChange={e => setPoints(Number(e.target.value))}
-                            className="mt-1 block w-full rounded-md border-input bg-background text-foreground shadow-sm focus:border-ring focus:ring-ring sm:text-sm"
                             min="1"
+                            className="w-full"
                         />
                     </div>
                 </div>
@@ -144,8 +144,16 @@ export function ChoreBoard() {
             </div>
 
             {chores.length === 0 && (
-                <div className="text-center text-muted-foreground py-12">
-                    <p>No chores added yet. Add one above to get started!</p>
+                <div className="text-center py-16 rounded-xl border border-dashed border-border bg-muted/30 flex flex-col items-center justify-center gap-3">
+                    <div className="p-4 rounded-full bg-background ring-1 ring-border shadow-sm">
+                        <Sparkles className="w-8 h-8 text-yellow-500/50" />
+                    </div>
+                    <div className="space-y-1">
+                        <h3 className="font-semibold text-lg">All caught up!</h3>
+                        <p className="text-muted-foreground max-w-sm mx-auto">
+                            No chores needing attention right now. Enjoy your free time or add a new task above.
+                        </p>
+                    </div>
                 </div>
             )}
         </div>

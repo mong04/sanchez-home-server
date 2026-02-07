@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import { twMerge } from 'tailwind-merge';
 import { ThemeToggle } from '../common/ThemeToggle';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FeedbackFab } from '../common/FeedbackFab';
 
 interface AppLayoutProps {
     children: React.ReactNode;
@@ -80,23 +82,32 @@ export function AppLayout({ children, activeTab, onTabChange }: AppLayoutProps) 
                     <ThemeToggle />
                 </div>
 
-                <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 scroll-smooth">
-                    <div
-                        key={activeTab}
-                        className="max-w-7xl mx-auto pb-24 md:pb-0 animate-in fade-in duration-300 slide-in-from-bottom-4"
-                    >
-                        {children}
-                    </div>
+                <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 scroll-smooth relative">
+                    <AnimatePresence mode="wait">
+                        <motion.div
+                            key={activeTab}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            transition={{ duration: 0.2 }}
+                            className="max-w-7xl mx-auto pb-24 md:pb-0"
+                        >
+                            {children}
+                        </motion.div>
+                    </AnimatePresence>
                 </div>
 
+                {/* Feedback FAB */}
+                <FeedbackFab />
+
                 {/* Bottom Nav (Mobile) */}
-                <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card/90 backdrop-blur-md border-t border-border pb-safe z-50">
+                <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card/90 backdrop-blur-md border-t border-border pb-safe z-40">
                     <div className="flex justify-around items-center h-16">
                         {NAV_ITEMS.map((item) => (
                             <button
                                 key={item.id}
                                 onClick={() => onTabChange(item.id)}
-                                className="flex flex-col items-center justify-center w-full h-full space-y-1"
+                                className="flex flex-col items-center justify-center w-full h-full space-y-1 touch-manipulation"
                             >
                                 <item.icon className={twMerge(
                                     "w-6 h-6 transition-colors",

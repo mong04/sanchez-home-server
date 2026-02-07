@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useBills } from '../../../hooks/use-organizer';
 import { AccessibleButton } from '../../common/AccessibleButton';
+import { PiggyBank } from 'lucide-react';
+import { Input } from '../../common/Input';
 
 export function FinanceTracker() {
     const { items: bills, addBill, togglePaid, deleteBill } = useBills();
@@ -37,45 +39,41 @@ export function FinanceTracker() {
                 <h3 className="text-lg font-medium text-card-foreground">Add New Bill</h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="md:col-span-1">
-                        <label htmlFor="bill-name" className="block text-sm font-medium text-muted-foreground">Name</label>
-                        <input
+                        <Input
+                            label="Name"
                             id="bill-name"
-                            type="text"
                             value={name}
                             onChange={e => setName(e.target.value)}
-                            className="mt-1 block w-full rounded-md border-input bg-background text-foreground shadow-sm focus:border-ring focus:ring-ring sm:text-sm"
                             placeholder="e.g. Electric"
                         />
                     </div>
                     <div className="md:col-span-1">
-                        <label htmlFor="bill-amount" className="block text-sm font-medium text-muted-foreground">Amount ($)</label>
-                        <input
+                        <Input
+                            label="Amount ($)"
                             id="bill-amount"
                             type="number"
                             value={amount}
                             onChange={e => setAmount(e.target.value)}
-                            className="mt-1 block w-full rounded-md border-input bg-background text-foreground shadow-sm focus:border-ring focus:ring-ring sm:text-sm"
                             min="0"
                             step="0.01"
                         />
                     </div>
                     <div className="md:col-span-1">
-                        <label htmlFor="bill-date" className="block text-sm font-medium text-muted-foreground">Due Date</label>
-                        <input
+                        <Input
+                            label="Due Date"
                             id="bill-date"
                             type="date"
                             value={dueDate}
                             onChange={e => setDueDate(e.target.value)}
-                            className="mt-1 block w-full rounded-md border-input bg-background text-foreground shadow-sm focus:border-ring focus:ring-ring sm:text-sm"
                         />
                     </div>
                     <div className="md:col-span-1">
-                        <label htmlFor="bill-category" className="block text-sm font-medium text-muted-foreground">Category</label>
+                        <label htmlFor="bill-category" className="block text-sm font-medium text-muted-foreground mb-1.5">Category</label>
                         <select
                             id="bill-category"
                             value={category}
                             onChange={e => setCategory(e.target.value)}
-                            className="mt-1 block w-full rounded-md border-input bg-background text-foreground shadow-sm focus:border-ring focus:ring-ring sm:text-sm"
+                            className="flex h-11 w-full rounded-lg border border-input bg-muted/30 px-3 py-2 text-base shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm"
                         >
                             <option>Utility</option>
                             <option>Subscription</option>
@@ -160,8 +158,16 @@ export function FinanceTracker() {
             </div>
 
             {bills.length === 0 && (
-                <div className="text-center text-muted-foreground py-12">
-                    <p>No bills tracked yet. Add one above.</p>
+                <div className="text-center py-16 rounded-xl border border-dashed border-border bg-muted/30 flex flex-col items-center justify-center gap-3">
+                    <div className="p-4 rounded-full bg-background ring-1 ring-border shadow-sm">
+                        <PiggyBank className="w-8 h-8 text-green-500/50" />
+                    </div>
+                    <div className="space-y-1">
+                        <h3 className="font-semibold text-lg">No bills tracked</h3>
+                        <p className="text-muted-foreground max-w-sm mx-auto">
+                            You're free and clear! Add a bill above to start tracking expenses.
+                        </p>
+                    </div>
                 </div>
             )}
         </div>

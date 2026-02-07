@@ -148,12 +148,21 @@ export const InfinityLog: React.FC = () => {
             {/* List Section */}
             <section aria-label="Memory List" className="space-y-4">
                 {filteredItems.length === 0 ? (
-                    <div className="text-center py-12 rounded-lg border border-dashed border-muted-foreground/25 bg-muted/50">
-                        <p className="text-muted-foreground">No memories found matching your criteria.</p>
+                    <div className="text-center py-16 rounded-xl border border-dashed border-border bg-muted/30 flex flex-col items-center justify-center gap-3">
+                        <div className="p-4 rounded-full bg-background ring-1 ring-border shadow-sm">
+                            <Tag className="w-8 h-8 text-muted-foreground/50" />
+                        </div>
+                        <div className="space-y-1">
+                            <h3 className="font-semibold text-lg">No memories found</h3>
+                            <p className="text-muted-foreground max-w-sm mx-auto">
+                                We couldn't find anything matching your search. Try adjusting your filters or add a new memory!
+                            </p>
+                        </div>
                         {(searchQuery || activeTag) && (
                             <Button
-                                variant="link"
+                                variant="outline"
                                 onClick={() => { setSearchQuery(''); setActiveTag(null); }}
+                                className="mt-2"
                             >
                                 Clear filters
                             </Button>

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { env } from '../config/env';
+import { updateProviderToken } from '../lib/yjs-provider';
 
 // API Configuration
 const PARTYKIT_HOST = env.PARTYKIT_HOST;

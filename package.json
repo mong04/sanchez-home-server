@@ -43,7 +43,7 @@
     "@tailwindcss/postcss": "^4.1.18",
     "@testing-library/user-event": "^14.6.1",
     "@types/jest-axe": "^3.5.9",
-    "@types/node": "^24.10.1",
+    "@types/node": "^24.10.12",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",

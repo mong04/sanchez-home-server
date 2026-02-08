@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { InviteScreen } from '../auth/InviteScreen';
-import { ProfileSetup } from '../auth/ProfileSetup';
+import { ProfileSelection } from '../auth/ProfileSelection';
 
 interface AuthLayoutProps {
     children: React.ReactNode;
@@ -15,9 +15,9 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         return <InviteScreen />;
     }
 
-    // 2. Authenticated but no profile -> Show Profile Setup
+    // 2. Authenticated but no profile -> Show Profile Selection/Setup
     if (isAuthenticated && !user) {
-        return <ProfileSetup />;
+        return <ProfileSelection />;
     }
 
     // 3. Authenticated & Profiled -> Show App (Children)

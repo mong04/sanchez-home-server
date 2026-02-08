@@ -35,18 +35,22 @@ test.describe('Authentication Flow', () => {
         await page.fill('input[type="password"]', 'SANCHEZ-KIDS-2025');
         await page.click('button[type="submit"]');
 
-        // 2. Profile Setup
-        await expect(page.locator('text=Welcome to the Family')).toBeVisible();
-        await page.screenshot({ path: '.agent_comms/screenshots/phase10a_auth_proof_2_profile.png' });
+        // 2. Profile Selection (New Step)
+        await expect(page.locator('text=Who\'s using Sanchez OS?')).toBeVisible({ timeout: 15000 });
+        await page.click('text=Add Profile');
 
-        // 3. Fill Profile
+        // 3. Profile Setup
+        await expect(page.locator('text=Welcome to the Family')).toBeVisible();
+        await page.screenshot({ path: '.agent_comms/screenshots/phase10b_auth_proof_2_profile.png' });
+
+        // 4. Fill Profile
         await page.fill('input[placeholder*="Dad, Mom"]', 'Test User');
         await page.click('text=Kid'); // Select role
         await page.click('button:has-text("Enter Sanchez OS")');
 
-        // 4. Verify Dashboard
+        // 5. Verify Dashboard
         // Use visible=true to select the one that is currently shown (Sidebar vs Bottom Nav)
         await expect(page.locator('text=Command Center >> visible=true')).toBeVisible();
-        await page.screenshot({ path: '.agent_comms/screenshots/phase10a_auth_proof_3_dashboard.png' });
+        await page.screenshot({ path: '.agent_comms/screenshots/phase10b_auth_proof_3_dashboard.png' });
     });
 });

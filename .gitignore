@@ -40,3 +40,6 @@ dist-ssr
 
 # Debug Screenshots
 debug-*.png
+
+# Test Output
+test_output*.txt

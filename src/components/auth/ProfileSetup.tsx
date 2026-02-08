@@ -3,26 +3,27 @@ import { useAuth } from '../../context/AuthContext';
 import { User, Shield, Baby, CheckCircle2 } from 'lucide-react';
 
 export function ProfileSetup() {
-    const { updateProfile } = useAuth();
+    const { createProfile } = useAuth();
     const [name, setName] = useState('');
     const [role, setRole] = useState<'parent' | 'kid' | 'admin'>('kid');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!name.trim()) return;
 
         setIsSubmitting(true);
 
-        // Simulate API delay
-        setTimeout(() => {
-            updateProfile({
-                id: crypto.randomUUID(),
+        try {
+            await createProfile({
                 name: name.trim(),
                 role: role,
                 avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`,
             });
-        }, 800);
+        } catch (error) {
+            console.error(error);
+            setIsSubmitting(false);
+        }
     };
 
     return (

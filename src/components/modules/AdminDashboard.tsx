@@ -3,13 +3,40 @@ import { useAuth } from '../../context/AuthContext';
 import { Copy, Check, ShieldAlert, Lock } from 'lucide-react';
 
 export function AdminDashboard() {
-    const { user } = useAuth();
+    const { user, token } = useAuth();
+    const [inviteCode, setInviteCode] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
 
-    const INVITE_CODE = "SANCHEZ-KIDS-2025"; // Hardcoded for Phase 10a
+    // Import env for host
+    const PARTYKIT_HOST = "127.0.0.1:1999"; // TODO: Use env.PARTYKIT_HOST if compatible or pass via Context
+    const PROTOCOL = window.location.protocol === 'https:' ? 'https:' : 'http:';
+    const API_URL = `${PROTOCOL}//${PARTYKIT_HOST}/parties/main/sanchez-family-os-v1`;
+
+    const generateCode = async () => {
+        setIsLoading(true);
+        try {
+            const response = await fetch(`${API_URL}/admin/invite`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            const data = await response.json();
+            if (data.code) {
+                setInviteCode(data.code);
+            }
+        } catch (error) {
+            console.error("Failed to generate code:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const copyToClipboard = () => {
-        navigator.clipboard.writeText(INVITE_CODE);
+        if (!inviteCode) return;
+        navigator.clipboard.writeText(inviteCode);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
@@ -49,26 +76,47 @@ export function AdminDashboard() {
                                 Invite System
                             </h3>
                             <p className="text-sm text-muted-foreground">
-                                Share this code to onboard new devices.
+                                Generate a one-time code for new devices.
                             </p>
                         </div>
                     </div>
 
-                    <div className="bg-muted/50 p-4 rounded-lg flex items-center justify-between group relative overflow-hidden">
-                        <code className="font-mono text-lg font-bold tracking-wider text-primary">
-                            {INVITE_CODE}
-                        </code>
-                        <button
-                            onClick={copyToClipboard}
-                            className="p-2 hover:bg-background rounded-md transition-colors"
-                            title="Copy to clipboard"
-                        >
-                            {copied ? (
-                                <Check className="w-5 h-5 text-emerald-500" />
-                            ) : (
-                                <Copy className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                            )}
-                        </button>
+                    <div className="space-y-4">
+                        {!inviteCode ? (
+                            <button
+                                onClick={generateCode}
+                                disabled={isLoading}
+                                className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors font-medium disabled:opacity-50"
+                            >
+                                {isLoading ? "Generating..." : "Generate New Code"}
+                            </button>
+                        ) : (
+                            <div className="bg-muted/50 p-4 rounded-lg flex items-center justify-between group relative overflow-hidden animate-in fade-in zoom-in-95">
+                                <code className="font-mono text-lg font-bold tracking-wider text-primary">
+                                    {inviteCode}
+                                </code>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={copyToClipboard}
+                                        className="p-2 hover:bg-background rounded-md transition-colors"
+                                        title="Copy to clipboard"
+                                    >
+                                        {copied ? (
+                                            <Check className="w-5 h-5 text-emerald-500" />
+                                        ) : (
+                                            <Copy className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                                        )}
+                                    </button>
+                                    <button
+                                        onClick={() => setInviteCode(null)}
+                                        className="p-2 hover:bg-background rounded-md transition-colors text-xs text-muted-foreground"
+                                        title="Clear"
+                                    >
+                                        Clear
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

@@ -26,6 +26,7 @@ export const provider = new YPartyKitProvider(
     SYNC_CONFIG.ROOM_NAME,
     doc,
     {
+        connect: false, // Disable WebRTC signaling (we only use PartyKit WebSocket)
         params: {
             token: typeof window !== 'undefined' ? localStorage.getItem('sfos_token') || '' : '',
         }
@@ -33,7 +34,7 @@ export const provider = new YPartyKitProvider(
 );
 
 provider.on('status', (event: { connected: boolean }) => {
-    console.log(`📡 [Yjs] WebRTC status: ${event.connected ? 'connected' : 'disconnected'}`);
+    console.log(`📡 [Yjs] PartyKit status: ${event.connected ? 'connected' : 'disconnected'}`);
 });
 
 // 4. Export shared types

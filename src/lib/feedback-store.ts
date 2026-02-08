@@ -1,5 +1,6 @@
 
-import { doc } from './yjs-store'
+
+import { doc } from './yjs-provider'
 
 export interface FeedbackItem {
     id: string

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { webrtcProvider, persistence, doc } from '../lib/yjs-store'
+import { provider, persistence, doc } from '../lib/yjs-provider'
 
 export function useYjsStatus() {
     const [status, setStatus] = useState({
@@ -11,9 +11,9 @@ export function useYjsStatus() {
     useEffect(() => {
         const updateStatus = () => {
             setStatus({
-                peers: webrtcProvider.awareness.getStates().size,
-                synced: persistence.synced,
-                connected: webrtcProvider.connected,
+                peers: provider.awareness.getStates().size,
+                synced: persistence?.synced || false,
+                connected: provider.ws?.readyState === WebSocket.OPEN,
             })
         }
 
@@ -21,16 +21,18 @@ export function useYjsStatus() {
         updateStatus()
 
         // Listeners
-        webrtcProvider.on('status', updateStatus)
-        webrtcProvider.on('peers', updateStatus)
-        persistence.on('synced', updateStatus)
-        webrtcProvider.awareness.on('change', updateStatus)
+        provider.on('status', updateStatus)
+        provider.awareness.on('change', updateStatus)
+        if (persistence) {
+            persistence.on('synced', updateStatus)
+        }
 
         return () => {
-            webrtcProvider.off('status', updateStatus)
-            webrtcProvider.off('peers', updateStatus)
-            persistence.off('synced', updateStatus)
-            webrtcProvider.awareness.off('change', updateStatus)
+            provider.off('status', updateStatus)
+            provider.awareness.off('change', updateStatus)
+            if (persistence) {
+                persistence.off('synced', updateStatus)
+            }
         }
     }, [])
 

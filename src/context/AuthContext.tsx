@@ -75,8 +75,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const data = await apiRequest('/family/profiles', 'GET', undefined, currentToken);
             setProfiles(data);
         } catch (error) {
-            console.error("Failed to fetch profiles:", error);
-            // If fetching profiles fails with 401, we might be expired
+            // If 401, clear the invalid session
+            if (error instanceof Error && error.message.includes('Unauthorized')) {
+                console.log('⚠️ Session expired, clearing...');
+                logout();
+            } else {
+                console.error("Failed to fetch profiles:", error);
+            }
         }
     };
 

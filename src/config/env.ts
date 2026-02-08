@@ -25,6 +25,10 @@ export const env = {
 
     // Specific Getters
     get PARTYKIT_HOST() {
+        // Explicitly access import.meta.env for Vite static replacement
+        if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_PARTYKIT_HOST) {
+            return import.meta.env.VITE_PARTYKIT_HOST.replace(/^https?:\/\//, '');
+        }
         return this.get('VITE_PARTYKIT_HOST') || this.get('NEXT_PUBLIC_PARTYKIT_HOST') || "127.0.0.1:1999";
     },
 

@@ -127,6 +127,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(newUser);
         localStorage.setItem('sfos_token', newToken);
         localStorage.setItem('sfos_user', JSON.stringify(newUser));
+
+        // Update the Yjs provider with the new token
+        updateProviderToken(newToken);
     };
 
     const logout = () => {

@@ -26,7 +26,6 @@ export const provider = new YPartyKitProvider(
     SYNC_CONFIG.ROOM_NAME,
     doc,
     {
-        connect: false, // Disable WebRTC signaling (we only use PartyKit WebSocket)
         params: {
             token: typeof window !== 'undefined' ? localStorage.getItem('sfos_token') || '' : '',
         }
@@ -36,6 +35,23 @@ export const provider = new YPartyKitProvider(
 provider.on('status', (event: { connected: boolean }) => {
     console.log(`📡 [Yjs] PartyKit status: ${event.connected ? 'connected' : 'disconnected'}`);
 });
+
+// Function to update the provider's token and reconnect
+export function updateProviderToken(newToken: string) {
+    if (typeof window !== 'undefined') {
+        // Disconnect current connection
+        provider.disconnect();
+
+        // Update the token in the provider's params
+        // @ts-ignore - accessing internal property
+        provider.params = { token: newToken };
+
+        // Reconnect with new token
+        provider.connect();
+
+        console.log('🔄 [Yjs] Provider reconnected with new token');
+    }
+}
 
 // 4. Export shared types
 // These are the root level shared structures

@@ -1,25 +1,17 @@
-import React from 'react';
-import {
-    LayoutDashboard,
-    Calendar,
-    Heart,
-    Infinity as InfinityIcon,
-    CheckSquare,
-    Menu,
-    MessageSquare
-} from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { AnimatePresence, motion } from 'framer-motion';
 import { twMerge } from 'tailwind-merge';
+import { Calendar, CheckSquare, Heart, InfinityIcon, LayoutDashboard, Menu, MessageSquare, Shield } from 'lucide-react';
 import { ThemeToggle } from '../common/ThemeToggle';
-import { motion, AnimatePresence } from 'framer-motion';
 import { FeedbackFab } from '../common/FeedbackFab';
 
 interface AppLayoutProps {
     children: React.ReactNode;
     activeTab: string;
-    onTabChange: (tab: string) => void;
+    onTabChange: (tabId: string) => void;
 }
 
-const NAV_ITEMS = [
+const BASE_NAV_ITEMS = [
     { id: 'command-center', label: 'Command Center', icon: LayoutDashboard },
     { id: 'smart-planner', label: 'Planner', icon: Calendar },
     { id: 'family-messenger', label: 'Messenger', icon: MessageSquare },
@@ -29,6 +21,15 @@ const NAV_ITEMS = [
 ];
 
 export function AppLayout({ children, activeTab, onTabChange }: AppLayoutProps) {
+    const { user } = useAuth();
+
+    const navItems = [...BASE_NAV_ITEMS];
+
+    // Allow Admins AND Parents to see the Admin Dashboard
+    if (user?.role === 'admin' || user?.role === 'parent') {
+        navItems.push({ id: 'admin', label: 'Admin', icon: Shield });
+    }
+
     return (
         <div className="flex h-screen bg-background text-foreground font-sans overflow-hidden transition-colors duration-300">
             {/* Sidebar (Desktop) */}
@@ -43,7 +44,7 @@ export function AppLayout({ children, activeTab, onTabChange }: AppLayoutProps) 
                     <ThemeToggle />
                 </div>
                 <nav className="flex-1 p-4 space-y-2">
-                    {NAV_ITEMS.map((item) => (
+                    {navItems.map((item) => (
                         <button
                             key={item.id}
                             onClick={() => onTabChange(item.id)}
@@ -63,6 +64,7 @@ export function AppLayout({ children, activeTab, onTabChange }: AppLayoutProps) 
                     ))}
                 </nav>
             </aside>
+
 
             {/* Main Content */}
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative bg-background">
@@ -103,7 +105,7 @@ export function AppLayout({ children, activeTab, onTabChange }: AppLayoutProps) 
                 {/* Bottom Nav (Mobile) */}
                 <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card/90 backdrop-blur-md border-t border-border pb-safe z-40">
                     <div className="flex justify-around items-center h-16">
-                        {NAV_ITEMS.map((item) => (
+                        {navItems.map((item) => (
                             <button
                                 key={item.id}
                                 onClick={() => onTabChange(item.id)}

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useMessenger } from '../../hooks/use-messenger';
 import { Button } from '../common/Button';
 import { Input } from '../common/Input';
-import { MessageSquare, Send, Image as ImageIcon, CheckCheck } from 'lucide-react';
+import { MessageSquare, Send, Image as ImageIcon, CheckCheck, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils';
 import { format } from 'date-fns';
@@ -10,7 +10,9 @@ import { format } from 'date-fns';
 export function FamilyMessenger() {
     const { messages, sendMessage } = useMessenger();
     const [inputText, setInputText] = useState('');
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Auto-scroll to bottom
     useEffect(() => {
@@ -21,22 +23,49 @@ export function FamilyMessenger() {
 
     const handleSend = (e?: React.FormEvent) => {
         e?.preventDefault();
-        if (!inputText.trim()) return;
+        if (!inputText.trim() && !selectedImage) return;
 
-        sendMessage(inputText.trim());
+        sendMessage(inputText.trim(), selectedImage ?? undefined);
         setInputText('');
+        setSelectedImage(null);
+    };
+
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setSelectedImage(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const triggerFileInput = () => {
+        fileInputRef.current?.click();
     };
 
     return (
-        <div className="flex flex-col h-full bg-background relative selection:bg-primary/20">
-            {/* Header (Optional, if not covered by AppLayout) - Keeping it clean for now */}
+        <div className="flex flex-col h-[calc(100vh-6rem)] md:h-[calc(100vh-4rem)] bg-background relative selection:bg-primary/20 rounded-xl overflow-hidden border border-border shadow-sm">
+            {/* Header - Fixed at top */}
+            <div className="flex-none p-4 border-b border-border bg-background/95 backdrop-blur z-20 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <MessageSquare className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                        <h3 className="font-semibold text-foreground">Family Chat</h3>
+                        <p className="text-xs text-muted-foreground">{messages.length} messages</p>
+                    </div>
+                </div>
+            </div>
 
-            {/* Message Area */}
-            <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 space-y-6">
+            {/* Message Area - Scrollable middle section */}
+            <div className="flex-1 overflow-y-auto min-h-0 bg-background/50 p-4 md:p-6 space-y-6 scroll-smooth">
                 {messages.length === 0 ? (
                     <EmptyState />
                 ) : (
-                    <div className="flex flex-col space-y-4 max-w-3xl mx-auto w-full">
+                    <div className="flex flex-col space-y-4 max-w-3xl mx-auto w-full pb-2">
                         <AnimatePresence initial={false}>
                             {messages.map((msg) => {
                                 const isMe = msg.sender === 'User';
@@ -62,14 +91,14 @@ export function FamilyMessenger() {
                                                     ? "bg-primary text-primary-foreground rounded-2xl rounded-tr-sm"
                                                     : "bg-secondary text-secondary-foreground rounded-2xl rounded-tl-sm"
                                             )}>
-                                                {msg.text}
                                                 {msg.imageBase64 && (
                                                     <img
                                                         src={msg.imageBase64}
                                                         alt="Attachment"
-                                                        className="mt-2 rounded-lg max-h-48 object-cover border border-black/10"
+                                                        className="mb-2 rounded-lg max-h-48 w-full object-cover border border-black/10 bg-black/5"
                                                     />
                                                 )}
+                                                {msg.text && <p>{msg.text}</p>}
                                             </div>
 
                                             <div className="flex items-center gap-1 mt-1 px-1">
@@ -85,51 +114,85 @@ export function FamilyMessenger() {
                                 );
                             })}
                         </AnimatePresence>
-                        <div ref={scrollRef} />
+                        <div ref={scrollRef} className="h-px" />
                     </div>
                 )}
             </div>
 
-            {/* Input Area */}
-            <div className="p-4 bg-background/80 backdrop-blur-lg border-t border-border sticky bottom-0 z-10 w-full">
+            {/* Input Area - Fixed at bottom */}
+            <div className="flex-none p-4 bg-background border-t border-border z-20">
                 <form
                     onSubmit={handleSend}
-                    className="max-w-3xl mx-auto w-full flex items-end gap-2"
+                    className="max-w-3xl mx-auto w-full flex flex-col gap-2"
                 >
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="rounded-full text-muted-foreground hover:bg-secondary shrink-0"
-                        aria-label="Attach image"
-                    >
-                        <ImageIcon className="w-5 h-5" />
-                    </Button>
+                    {/* Image Preview */}
+                    <AnimatePresence>
+                        {selectedImage && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                                animate={{ opacity: 1, height: 'auto', marginBottom: 8 }}
+                                exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                                className="relative w-fit overflow-hidden"
+                            >
+                                <img src={selectedImage} alt="Preview" className="h-20 rounded-lg border border-border shadow-sm" />
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedImage(null)}
+                                    className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 shadow-md hover:bg-destructive/90 transition-colors"
+                                >
+                                    <X className="w-3 h-3" />
+                                </button>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
-                    <div className="flex-1 relative">
-                        <Input
-                            value={inputText}
-                            onChange={(e) => setInputText(e.target.value)}
-                            placeholder="Type a message..."
-                            className="w-full rounded-2xl pl-4 pr-12 min-h-[44px] py-2.5 border-muted-foreground/20 focus-visible:ring-primary/50 bg-secondary/30"
+                    <div className="flex items-end gap-2">
+                        <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            ref={fileInputRef}
+                            onChange={handleFileSelect}
                         />
-                    </div>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={triggerFileInput}
+                            className={cn(
+                                "rounded-full text-muted-foreground hover:bg-secondary shrink-0",
+                                selectedImage && "text-primary bg-primary/10"
+                            )}
+                            aria-label="Attach image"
+                        >
+                            <ImageIcon className="w-5 h-5" />
+                        </Button>
 
-                    <Button
-                        type="submit"
-                        size="icon"
-                        className={cn(
-                            "rounded-full shrink-0 h-11 w-11 transition-all duration-300 shadow-md",
-                            inputText.trim()
-                                ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105"
-                                : "bg-muted text-muted-foreground hover:bg-muted"
-                        )
-                        }
-                        disabled={!inputText.trim()}
-                        aria-label="Send message"
-                    >
-                        <Send className="w-5 h-5 ml-0.5" />
-                    </Button>
+                        <div className="flex-1 relative">
+                            <Input
+                                value={inputText}
+                                onChange={(e) => setInputText(e.target.value)}
+                                placeholder="Type a message..."
+                                className="w-full rounded-2xl pl-4 pr-12 min-h-[44px] py-2.5 border-muted-foreground/20 focus-visible:ring-primary/50 bg-secondary/30"
+                            />
+                        </div>
+
+                        <Button
+                            type="submit"
+                            size="icon"
+                            className={cn(
+                                "rounded-full shrink-0 h-11 w-11 transition-all duration-300 shadow-md",
+                                inputText.trim() || selectedImage
+                                    ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105"
+                                    : "bg-muted text-muted-foreground hover:bg-muted"
+                            )
+                            }
+                            disabled={!inputText.trim() && !selectedImage}
+                            aria-label="Send message"
+                        >
+                            <Send className="w-5 h-5 ml-0.5" />
+                        </Button>
+                    </div>
                 </form>
             </div>
         </div>

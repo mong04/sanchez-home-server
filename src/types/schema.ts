@@ -31,13 +31,32 @@ export interface ShoppingItem {
     addedBy: string;
 }
 
+
+export type CalendarEventType = 'appointment' | 'family' | 'reminder' | 'work' | 'school' | 'sports' | 'chore' | 'meal';
+
+
+export type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
+
+export interface RecurrenceRule {
+    frequency: RecurrenceFrequency;
+    interval: number; // e.g. 1 = every day, 2 = every other day
+    endDate?: number; // timestamp
+    count?: number; // End after N occurrences
+    daysOfWeek?: number[]; // 0=Sun, 1=Mon, etc. (for weekly)
+    exceptions?: number[]; // Timestamps of skipped occurrences (start time of the instance)
+}
+
 export interface CalendarEvent {
     id: string;
     title: string;
     start: number;
     end: number;
     isLocked: boolean;
-    type: 'appointment' | 'family' | 'reminder';
+    type: CalendarEventType;
+    description?: string;
+    location?: string;
+    color?: string; // Hex code or tailwind class
+    recurrence?: RecurrenceRule;
 }
 
 export interface WellnessEntry {

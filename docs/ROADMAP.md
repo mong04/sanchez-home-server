@@ -44,9 +44,16 @@
     - [x] Vulnerability scans, privacy reviews, backup testing.
     - [x] Create Auditor Agent.
 
-- **Phase 10: Beta Iteration & UX Refinements**
-    - [ ] Family beta testing, feedback integration, A/B variants, accessibility checks.
-    - [ ] Create Iterator Agent for refinements.
+- **Phase 10a: Secure Family Foundation (Authentication)**
+    - [ ] **Data Layer**: Implement `onConnect` token validation in PartyKit.
+    - [ ] **Admin**: "Invite Code" generation strategy (Environment Variables).
+    - [ ] **UI**: "Airlock" screen (Invite Code entry).
+    - [ ] **Onboarding**: "Create Profile" screen (Name, Avatar, Role) immediately after unlock.
+
+- **Phase 10b: Deep Feature Iteration (Gamification & Profiles)**
+    - [ ] **User Profiles**: Yjs User Store (Avatar, Name, Role).
+    - [ ] **Gamification**: XP System, Streaks, Leaderboards.
+    - [ ] **Family Beta**: Feedback integration, A/B variants.
 
 - **Phase 11: Launch Prep & Monitoring**
     - [ ] Staged deployment, onboarding docs, monitoring setup, release notes.
@@ -64,6 +71,10 @@ To accelerate the remaining phases, I have identified the following high-value s
 - **`anthropics/webapp-testing`**: Automation of Playwright scenarios for regression testing.
 - **`shpigford/screenshots`**: Generating consistent viewport screenshots for documentation and visual verification.
 - **`ehmo/platform-design-skills`**: verification of Accessibility/Touch targets against Apple/Material guidelines for PWA.
+
+### For Phase 10a (Secure Auth)
+- **`clerk/clerk-sdk`** (Reference): *Note: We are building custom local auth, but Clerk patterns are good references.*
+- **`auth0/jwt-best-practices`**: Guidelines for secure token handling.
 
 ### General Engineering
 - **`vercel-labs/react-best-practices`**: Enforcing consistent patterns during refactors.

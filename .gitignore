@@ -34,3 +34,9 @@ dist-ssr
 .env
 .env.local
 .env.*
+
+# PartyKit
+.partykit/
+
+# Debug Screenshots
+debug-*.png

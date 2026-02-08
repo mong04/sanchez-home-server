@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useInfinityLog } from '../../hooks/use-infinity-log';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../common/Card';
 import { Input } from '../common/Input';
+import { TagInput } from '../common/TagInput';
 import { Button } from '../common/Button';
 import { Tag, Trash2, Plus, Search, Calendar } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -10,7 +11,7 @@ export const InfinityLog: React.FC = () => {
     const { items, addItem, removeItem } = useInfinityLog();
     const [searchQuery, setSearchQuery] = useState('');
     const [newItemContent, setNewItemContent] = useState('');
-    const [newItemTags, setNewItemTags] = useState('');
+    const [newItemTags, setNewItemTags] = useState<string[]>([]);
     const [activeTag, setActiveTag] = useState<string | null>(null);
 
     // Collect unique tags from all items
@@ -33,10 +34,9 @@ export const InfinityLog: React.FC = () => {
     const handleAddItem = (e: React.FormEvent) => {
         e.preventDefault();
         if (newItemContent.trim()) {
-            const tags = newItemTags.split(',').map(s => s.trim()).filter(Boolean);
-            addItem(newItemContent, tags);
+            addItem(newItemContent, newItemTags);
             setNewItemContent('');
-            setNewItemTags('');
+            setNewItemTags([]);
         }
     };
 
@@ -75,15 +75,16 @@ export const InfinityLog: React.FC = () => {
                                 />
                             </div>
                             <div className="grid gap-4 sm:grid-cols-[1fr_auto] items-end">
-                                <Input
-                                    label="Tags (comma separated)"
+                                <TagInput
+                                    label="Tags"
+                                    description="Press Enter to add tags"
                                     id="memory-tags"
-                                    placeholder="e.g. funny, milestone, idea"
-                                    value={newItemTags}
-                                    onChange={(e) => setNewItemTags(e.target.value)}
-                                    className="bg-background"
+                                    placeholder="e.g. funny, milestone"
+                                    tags={newItemTags}
+                                    setTags={setNewItemTags}
+                                    className="w-full"
                                 />
-                                <Button type="submit" disabled={!newItemContent.trim()} className="w-full sm:w-auto">
+                                <Button type="submit" disabled={!newItemContent.trim()} className="w-full sm:w-auto h-11 mb-0.5">
                                     Remember
                                 </Button>
                             </div>

@@ -24,7 +24,12 @@ if (persistence) {
 export const provider = new YPartyKitProvider(
     SYNC_CONFIG.PARTYKIT_HOST,
     SYNC_CONFIG.ROOM_NAME,
-    doc
+    doc,
+    {
+        params: {
+            token: typeof window !== 'undefined' ? localStorage.getItem('sfos_token') || '' : '',
+        }
+    }
 );
 
 provider.on('status', (event: { connected: boolean }) => {

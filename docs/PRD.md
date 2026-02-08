@@ -19,6 +19,7 @@ Transform family life by minimizing chaos and enhancing well-being.
 ## 3. Technical Requirements
 - **Stack**: React + Tailwind CSS.
 - **Data Layer**: Yjs (CRDTs) + `y-indexeddb` (Local Persistence) + `y-partykit` (WebSocket Sync).
+- **Authentication**: Zero Trust "Invite-Only" model. Admin generates invite codes; PartyKit rejects unauthorized connections.
 - **Security**: Local-only data. No external analytics/trackers.
 - **Performance**: <1s TTI. Retry budgets for network calls.
 - **Devices**: 

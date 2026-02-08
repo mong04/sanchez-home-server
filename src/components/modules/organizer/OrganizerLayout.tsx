@@ -5,8 +5,12 @@ import { ShoppingList } from './ShoppingList';
 
 type Tab = 'chores' | 'finance' | 'shopping';
 
-export function OrganizerLayout() {
-    const [activeTab, setActiveTab] = useState<Tab>('chores');
+interface OrganizerLayoutProps {
+    initialTab?: Tab;
+}
+
+export function OrganizerLayout({ initialTab = 'chores' }: OrganizerLayoutProps) {
+    const [activeTab, setActiveTab] = useState<Tab>(initialTab);
 
     return (
         <section className="p-6 space-y-6 max-w-7xl mx-auto" aria-labelledby="organizer-heading">

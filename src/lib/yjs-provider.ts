@@ -32,9 +32,27 @@ export const provider = new YPartyKitProvider(
     }
 );
 
+// Debug logging for connection issues
 provider.on('status', (event: { connected: boolean }) => {
     console.log(`📡 [Yjs] PartyKit status: ${event.connected ? 'connected' : 'disconnected'}`);
 });
+
+provider.on('connection-error', (error: any) => {
+    console.error('❌ [Yjs] PartyKit connection error:', error);
+});
+
+provider.on('synced', (event: { synced: boolean }) => {
+    console.log(`✅ [Yjs] PartyKit synced: ${event.synced}`);
+});
+
+// Log initial connection details
+if (typeof window !== 'undefined') {
+    console.log('🔌 [Yjs] Provider config:', {
+        host: SYNC_CONFIG.PARTYKIT_HOST,
+        room: SYNC_CONFIG.ROOM_NAME,
+        hasToken: !!localStorage.getItem('sfos_token')
+    });
+}
 
 // Function to update the provider's token and reconnect
 export function updateProviderToken(newToken: string) {

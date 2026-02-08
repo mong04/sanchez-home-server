@@ -1,3 +1,6 @@
+// Polyfill type for process to avoid "Cannot find name 'process'" in client builds
+declare const process: { env: Record<string, string | undefined> };
+
 export const env = {
     // Helper to get env vars safely across Vite (client) and PartyKit (server)
     get: (key: string): string | undefined => {

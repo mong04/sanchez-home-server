@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Plus, User as UserIcon } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { ProfileSetup } from './ProfileSetup';
 
 export function ProfileSelection() {
-    const { profiles, selectProfile, user } = useAuth();
+    const { profiles, selectProfile } = useAuth();
     const [isCreating, setIsCreating] = useState(false);
     const [isLoading, setIsLoading] = useState<string | null>(null);
 

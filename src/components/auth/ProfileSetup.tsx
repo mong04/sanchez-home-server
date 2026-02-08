@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { User, Shield, Baby, CheckCircle2 } from 'lucide-react';
+import { Shield, Baby, CheckCircle2 } from 'lucide-react';
 
 export function ProfileSetup() {
     const { createProfile } = useAuth();

@@ -1,5 +1,7 @@
 // Environment detection
 // Vite exposes env vars via import.meta.env
+import { env } from './env';
+
 const isDev = import.meta.env.DEV;
 
 export const SYNC_CONFIG = {
@@ -10,9 +12,7 @@ export const SYNC_CONFIG = {
 
     // PROD: Use PartyKit Cloud
     // DEV: Use local PartyKit server (127.0.0.1:1999)
-    PARTYKIT_HOST: isDev
-        ? '127.0.0.1:1999'
-        : 'sanchez-family-os-sync.mong04.partykit.dev',
+    PARTYKIT_HOST: env.PARTYKIT_HOST,
 
     ENABLE_ENCRYPTION: !isDev,
 } as const;

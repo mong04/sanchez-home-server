@@ -25,12 +25,12 @@ export const env = {
 
     // Specific Getters
     get PARTYKIT_HOST() {
-        return this.get('NEXT_PUBLIC_PARTYKIT_HOST') || "127.0.0.1:1999";
+        return this.get('VITE_PARTYKIT_HOST') || this.get('NEXT_PUBLIC_PARTYKIT_HOST') || "127.0.0.1:1999";
     },
 
     get PARTYKIT_SECRET() {
         // In production/deployment, this MUST be set.
         // In local dev, we can fallback or require .env
-        return this.getOrThrow('PARTYKIT_SECRET');
+        return this.get('VITE_PARTYKIT_SECRET') || this.getOrThrow('PARTYKIT_SECRET');
     }
 };

@@ -133,6 +133,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem('sfos_user');
     };
 
+    useEffect(() => {
+        console.log("🔌 Auth Provider Config:", {
+            host: PARTYKIT_HOST,
+            protocol: PROTOCOL,
+            apiUrl: API_URL,
+            mode: import.meta.env.MODE
+        });
+    }, []);
+
     return (
         <AuthContext.Provider value={{ isAuthenticated, user, token, profiles, login, logout, selectProfile, createProfile, fetchProfiles }}>
             {children}

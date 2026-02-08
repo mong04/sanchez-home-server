@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Copy, Check, ShieldAlert, Lock } from 'lucide-react';
+import { env } from '../../config/env';
 
 export function AdminDashboard() {
     const { user, token } = useAuth();
@@ -9,7 +10,7 @@ export function AdminDashboard() {
     const [isLoading, setIsLoading] = useState(false);
 
     // Import env for host
-    const PARTYKIT_HOST = "127.0.0.1:1999"; // TODO: Use env.PARTYKIT_HOST if compatible or pass via Context
+    const PARTYKIT_HOST = env.PARTYKIT_HOST;
     const PROTOCOL = window.location.protocol === 'https:' ? 'https:' : 'http:';
     const API_URL = `${PROTOCOL}//${PARTYKIT_HOST}/parties/main/sanchez-family-os-v1`;
 

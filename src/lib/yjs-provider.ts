@@ -41,8 +41,8 @@ function createProvider(token: string): YPartyKitProvider {
         console.error('❌ [Yjs] PartyKit connection error:', error);
     });
 
-    newProvider.on('synced', (event: { synced: boolean }) => {
-        console.log(`✅ [Yjs] PartyKit synced: ${event.synced}`);
+    newProvider.on('synced', () => {
+        console.log('✅ [Yjs] PartyKit synced with server');
     });
 
     return newProvider;

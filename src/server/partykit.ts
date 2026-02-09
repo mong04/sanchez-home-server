@@ -103,7 +103,8 @@ export default class Server implements Party.Server {
 
         // --- API: ADMIN ---
         if (url.pathname.endsWith("/admin/invite") && req.method === "POST") {
-            if (payload.role !== "admin") {
+            // Allow both admin and parent roles to generate invites
+            if (payload.role !== "admin" && payload.role !== "parent") {
                 return Response.json({ error: "Forbidden" }, { status: 403, headers: CORS_HEADERS });
             }
 

@@ -2,11 +2,23 @@ import type * as Party from "partykit/server";
 import { onConnect } from "y-partykit";
 import { signToken, verifyToken, validateInviteCode } from "./auth";
 
-const CORS_HEADERS = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+// Allowed origins for CORS - restrict to actual deployment domains
+const ALLOWED_ORIGINS = [
+    'https://sanchez-family-os.vercel.app',
+    'https://sanchez-home-server.vercel.app',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173'
+];
+
+function getCorsHeaders(origin: string | null): Record<string, string> {
+    const allowedOrigin = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+    return {
+        "Access-Control-Allow-Origin": allowedOrigin,
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Access-Control-Allow-Credentials": "true",
+    };
+}
 
 export default class Server implements Party.Server {
     room: Party.Room;
@@ -15,6 +27,9 @@ export default class Server implements Party.Server {
     }
 
     async onRequest(req: Party.Request): Promise<Response> {
+        const origin = req.headers.get('Origin');
+        const CORS_HEADERS = getCorsHeaders(origin);
+
         if (req.method === "OPTIONS") {
             return new Response(null, { status: 204, headers: CORS_HEADERS });
         }
@@ -27,14 +42,16 @@ export default class Server implements Party.Server {
             const storedInvites = await this.room.storage.get<string[]>("invites") || [];
 
             if (await validateInviteCode(body.code, storedInvites)) {
-                // Issue a temporary token for profile selection (or full access if we knew the user)
-                // For now, we issue a "pre-auth" token or just a generic one.
-                // Since we don't know the USER yet, we can't fully sign it with role.
-                // WE WILL ISSUE A GENERIC "FAMILY" TOKEN first.
-                // ACTUALLY, let's keep it simple: Invite Code -> Valid Token with "guest" or "pending" role?
-                // OR, checking the plan: "Profile Selection -> App".
-                // So this token allows reading profiles.
-                const token = await signToken({ sub: "pending", name: "Pending", role: "kid" }); // Role doesn't matter yet
+                // Consume the invite code (single-use)
+                const codeIndex = storedInvites.indexOf(body.code);
+                if (codeIndex > -1) {
+                    storedInvites.splice(codeIndex, 1);
+                    await this.room.storage.put("invites", storedInvites);
+                    console.log('🔐 [Auth] Invite code consumed:', body.code.substring(0, 4) + '...');
+                }
+
+                // Issue a temporary token for profile selection
+                const token = await signToken({ sub: "pending", name: "Pending", role: "kid" });
                 return Response.json({ token }, { headers: CORS_HEADERS });
             }
             return Response.json({ error: "Invalid code" }, { status: 401, headers: CORS_HEADERS });
@@ -108,11 +125,12 @@ export default class Server implements Party.Server {
                 return Response.json({ error: "Forbidden" }, { status: 403, headers: CORS_HEADERS });
             }
 
-            // Generate simple 6-char code
-            const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+            // Generate cryptographically strong 16-char code
+            const newCode = crypto.randomUUID().replace(/-/g, '').substring(0, 16).toUpperCase();
             const invites = await this.room.storage.get<string[]>("invites") || [];
             invites.push(newCode);
             await this.room.storage.put("invites", invites);
+            console.log('🔐 [Admin] New invite code generated');
 
             return Response.json({ code: newCode }, { headers: CORS_HEADERS });
         }

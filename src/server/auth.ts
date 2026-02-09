@@ -4,8 +4,7 @@ import { env } from '../config/env';
 // Secret key for signing JWTs
 const SECRET_KEY = new TextEncoder().encode(env.PARTYKIT_SECRET);
 
-// Debug: Log secret prefix (REMOVE IN PRODUCTION)
-console.log('🔐 [Auth] Secret loaded (first 10 chars):', env.PARTYKIT_SECRET.substring(0, 10));
+
 
 export interface JWTPayload {
     sub: string;     // User ID
@@ -46,7 +45,6 @@ export async function verifyToken(token: string): Promise<JWTPayload | null> {
  * Validates an invite code.
  */
 export async function validateInviteCode(code: string, validCodes: string[] = []): Promise<boolean> {
-    // Phase 10a hardcoded + any dynamic codes
-    const hardcoded = "SANCHEZ-KIDS-2025";
-    return code === hardcoded || validCodes.includes(code);
+    // Only accept dynamically generated invite codes (no hardcoded backdoors)
+    return validCodes.includes(code);
 }

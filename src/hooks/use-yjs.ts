@@ -11,7 +11,7 @@ export function useYjsStatus() {
     useEffect(() => {
         const updateStatus = () => {
             setStatus({
-                peers: provider.awareness.getStates().size,
+                peers: provider.awareness?.getStates().size ?? 0,
                 synced: persistence?.synced || false,
                 connected: provider.ws?.readyState === WebSocket.OPEN,
             })
@@ -22,14 +22,14 @@ export function useYjsStatus() {
 
         // Listeners
         provider.on('status', updateStatus)
-        provider.awareness.on('change', updateStatus)
+        provider.awareness?.on('change', updateStatus)
         if (persistence) {
             persistence.on('synced', updateStatus)
         }
 
         return () => {
             provider.off('status', updateStatus)
-            provider.awareness.off('change', updateStatus)
+            provider.awareness?.off('change', updateStatus)
             if (persistence) {
                 persistence.off('synced', updateStatus)
             }

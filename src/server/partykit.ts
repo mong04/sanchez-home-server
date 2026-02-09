@@ -10,8 +10,17 @@ const ALLOWED_ORIGINS = [
     'http://127.0.0.1:5173'
 ];
 
+function isAllowedOrigin(origin: string | null): boolean {
+    if (!origin) return false;
+    // Allow exact matches
+    if (ALLOWED_ORIGINS.includes(origin)) return true;
+    // Allow any Vercel preview deployment (*.vercel.app)
+    if (origin.endsWith('.vercel.app') && origin.startsWith('https://')) return true;
+    return false;
+}
+
 function getCorsHeaders(origin: string | null): Record<string, string> {
-    const allowedOrigin = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+    const allowedOrigin = isAllowedOrigin(origin) && origin ? origin : ALLOWED_ORIGINS[0];
     return {
         "Access-Control-Allow-Origin": allowedOrigin,
         "Access-Control-Allow-Methods": "GET, POST, OPTIONS",

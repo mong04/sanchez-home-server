@@ -4,6 +4,9 @@ import { env } from '../config/env';
 // Secret key for signing JWTs
 const SECRET_KEY = new TextEncoder().encode(env.PARTYKIT_SECRET);
 
+// Debug: Log secret prefix (REMOVE IN PRODUCTION)
+console.log('🔐 [Auth] Secret loaded (first 10 chars):', env.PARTYKIT_SECRET.substring(0, 10));
+
 export interface JWTPayload {
     sub: string;     // User ID
     name: string;    // User Name

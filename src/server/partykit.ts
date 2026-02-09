@@ -122,12 +122,25 @@ export default class Server implements Party.Server {
     async onConnect(conn: Party.Connection, _ctx: Party.ConnectionContext) {
         const token = new URL(conn.uri).searchParams.get("token");
 
+        console.log('🔌 [PartyKit] Connection attempt:', {
+            hasToken: !!token,
+            tokenPrefix: token ? token.substring(0, 20) + '...' : 'none'
+        });
+
         // Verify token properly (Async)
         const payload = token ? await verifyToken(token) : null;
 
+        console.log('🔍 [PartyKit] Token verification result:', {
+            valid: !!payload,
+            payload: payload ? { sub: payload.sub, name: payload.name, role: payload.role } : null
+        });
+
         if (!payload) {
+            console.log('❌ [PartyKit] Closing connection - unauthorized');
             return conn.close(4001, "Unauthorized");
         }
+
+        console.log('✅ [PartyKit] Connection authorized for:', payload.name);
 
         return onConnect(conn, this.room, {
             persist: true

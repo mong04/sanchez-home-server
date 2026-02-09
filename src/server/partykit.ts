@@ -54,10 +54,34 @@ export default class Server implements Party.Server {
 
         // --- AUTH: LOGIN ---
         if (req.method === "POST" && url.pathname.endsWith("/auth/login")) {
+            // Rate limiting: Track failed attempts by IP
+            const clientIP = req.headers.get('CF-Connecting-IP')
+                || req.headers.get('X-Forwarded-For')?.split(',')[0]
+                || 'unknown';
+            const rateLimitKey = `ratelimit:${clientIP}`;
+            const rateData = await this.room.storage.get<{ count: number; resetAt: number }>(rateLimitKey);
+
+            const now = Date.now();
+            const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
+            const MAX_ATTEMPTS = 5;
+
+            // Check if currently rate limited
+            if (rateData && rateData.count >= MAX_ATTEMPTS && now < rateData.resetAt) {
+                const minutesLeft = Math.ceil((rateData.resetAt - now) / 60000);
+                console.log(`🚫 [RateLimit] IP ${clientIP} blocked, ${minutesLeft}m remaining`);
+                return Response.json(
+                    { error: `Too many attempts. Try again in ${minutesLeft} minutes.` },
+                    { status: 429, headers: CORS_HEADERS }
+                );
+            }
+
             const body = await req.json() as { code: string };
             const storedInvites = await this.room.storage.get<string[]>("invites") || [];
 
             if (await validateInviteCode(body.code, storedInvites)) {
+                // Success - clear rate limit for this IP
+                await this.room.storage.delete(rateLimitKey);
+
                 // Consume the invite code (single-use)
                 const codeIndex = storedInvites.indexOf(body.code);
                 if (codeIndex > -1) {
@@ -70,6 +94,17 @@ export default class Server implements Party.Server {
                 const token = await signToken({ sub: "pending", name: "Pending", role: "kid" });
                 return Response.json({ token }, { headers: CORS_HEADERS });
             }
+
+            // Failed attempt - increment rate limit counter
+            const newCount = (rateData && now < rateData.resetAt) ? rateData.count + 1 : 1;
+            await this.room.storage.put(rateLimitKey, {
+                count: newCount,
+                resetAt: (rateData && now < rateData.resetAt) ? rateData.resetAt : now + RATE_LIMIT_WINDOW
+            });
+
+            const attemptsLeft = MAX_ATTEMPTS - newCount;
+            console.log(`⚠️ [RateLimit] Failed attempt from ${clientIP}, ${attemptsLeft} attempts left`);
+
             return Response.json({ error: "Invalid code" }, { status: 401, headers: CORS_HEADERS });
         }
 

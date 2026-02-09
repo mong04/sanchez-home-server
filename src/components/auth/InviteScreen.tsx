@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Lock, ArrowRight, Loader2, Fingerprint } from 'lucide-react';
+import { Lock, ArrowRight, Loader2, Fingerprint, Server } from 'lucide-react';
+import { env } from '../../config/env';
 
 export function InviteScreen() {
     const { login, passkeySupported, hasPasskeys, loginWithPasskey } = useAuth();
@@ -141,9 +142,15 @@ export function InviteScreen() {
                 </div>
 
                 {/* Footer */}
-                <p className="text-center text-xs text-slate-600">
-                    Restricted Access area. Authorized personnel only.
-                </p>
+                <div className="text-center space-y-2">
+                    <p className="text-xs text-slate-600">
+                        Restricted Access area. Authorized personnel only.
+                    </p>
+                    <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-slate-900/50 border border-slate-800 text-[10px] text-slate-500">
+                        <Server className="w-3 h-3" />
+                        <span>Connected to: {env.PARTYKIT_HOST}</span>
+                    </div>
+                </div>
             </div>
         </div>
     );

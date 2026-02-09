@@ -8,7 +8,6 @@ import type { InfinityLogItem, Chore, Bill, ShoppingItem, CalendarEvent, Wellnes
 export const doc = new Y.Doc();
 
 // 2. Configure persistence (Offline First)
-// This will save the state to the browser's IndexedDB
 export const persistence = typeof window !== 'undefined' && typeof indexedDB !== 'undefined'
     ? new IndexeddbPersistence(SYNC_CONFIG.ROOM_NAME, doc)
     : null;
@@ -19,64 +18,85 @@ if (persistence) {
     });
 }
 
-// 3. Configure PartyKit Provider (WebSocket Sync)
-// This connects to the PartyKit server (Managed WebSocket)
-export const provider = new YPartyKitProvider(
-    SYNC_CONFIG.PARTYKIT_HOST,
-    SYNC_CONFIG.ROOM_NAME,
-    doc,
-    {
-        params: {
-            token: typeof window !== 'undefined' ? localStorage.getItem('sfos_token') || '' : '',
+// 3. Provider management - mutable reference for token updates
+let currentProvider: YPartyKitProvider | null = null;
+
+function createProvider(token: string): YPartyKitProvider {
+    console.log('🔧 [Yjs] Creating provider with token:', token ? `${token.substring(0, 20)}...` : 'EMPTY');
+
+    const newProvider = new YPartyKitProvider(
+        SYNC_CONFIG.PARTYKIT_HOST,
+        SYNC_CONFIG.ROOM_NAME,
+        doc,
+        {
+            params: { token }
         }
-    }
-);
+    );
 
-// Debug logging for connection issues
-provider.on('status', (event: { connected: boolean }) => {
-    console.log(`📡 [Yjs] PartyKit status: ${event.connected ? 'connected' : 'disconnected'}`);
-});
-
-provider.on('connection-error', (error: any) => {
-    console.error('❌ [Yjs] PartyKit connection error:', error);
-});
-
-provider.on('synced', (event: { synced: boolean }) => {
-    console.log(`✅ [Yjs] PartyKit synced: ${event.synced}`);
-});
-
-// Log initial connection details
-if (typeof window !== 'undefined') {
-    console.log('🔌 [Yjs] Provider config:', {
-        host: SYNC_CONFIG.PARTYKIT_HOST,
-        room: SYNC_CONFIG.ROOM_NAME,
-        hasToken: !!localStorage.getItem('sfos_token')
+    newProvider.on('status', (event: { connected: boolean }) => {
+        console.log(`📡 [Yjs] PartyKit status: ${event.connected ? 'connected' : 'disconnected'}`);
     });
+
+    newProvider.on('connection-error', (error: any) => {
+        console.error('❌ [Yjs] PartyKit connection error:', error);
+    });
+
+    newProvider.on('synced', (event: { synced: boolean }) => {
+        console.log(`✅ [Yjs] PartyKit synced: ${event.synced}`);
+    });
+
+    return newProvider;
 }
 
-// Function to update the provider's token and reconnect
+// Initialize provider with stored token (if any)
+if (typeof window !== 'undefined') {
+    const storedToken = localStorage.getItem('sfos_token') || '';
+    console.log('🔌 [Yjs] Initial provider config:', {
+        host: SYNC_CONFIG.PARTYKIT_HOST,
+        room: SYNC_CONFIG.ROOM_NAME,
+        hasToken: !!storedToken
+    });
+    currentProvider = createProvider(storedToken);
+}
+
+// Export getter for provider (may be null on server)
+export function getProvider(): YPartyKitProvider | null {
+    return currentProvider;
+}
+
+// Legacy export for compatibility
+export const provider = {
+    get awareness() { return currentProvider?.awareness; },
+    get ws() { return currentProvider?.ws; },
+    disconnect() { currentProvider?.disconnect(); },
+    connect() { currentProvider?.connect(); },
+    on(event: string, handler: any) { currentProvider?.on(event, handler); },
+    off(event: string, handler: any) { currentProvider?.off(event, handler); },
+};
+
+// Function to update the provider's token - creates new provider
 export function updateProviderToken(newToken: string) {
-    if (typeof window !== 'undefined') {
-        // Disconnect current connection
-        provider.disconnect();
+    if (typeof window === 'undefined') return;
 
-        // Update the token in the provider's params
-        // @ts-ignore - accessing internal property
-        provider.params = { token: newToken };
+    console.log('🔄 [Yjs] Updating provider token...');
 
-        // Reconnect with new token
-        provider.connect();
-
-        console.log('🔄 [Yjs] Provider reconnected with new token');
+    // Destroy old provider
+    if (currentProvider) {
+        currentProvider.disconnect();
+        currentProvider.destroy();
     }
+
+    // Create new provider with token
+    currentProvider = createProvider(newToken);
+
+    console.log('✅ [Yjs] Provider recreated with new token');
 }
 
 // 4. Export shared types
-// These are the root level shared structures
 export const infinityLog = doc.getArray<InfinityLogItem>('infinityLog');
-export const chores = doc.getArray<Chore>('chores'); // Updated type
-export const bills = doc.getArray<Bill>('bills'); // New
-export const shoppingList = doc.getArray<ShoppingItem>('shoppingList'); // New
+export const chores = doc.getArray<Chore>('chores');
+export const bills = doc.getArray<Bill>('bills');
+export const shoppingList = doc.getArray<ShoppingItem>('shoppingList');
 export const calendar = doc.getArray<CalendarEvent>('calendar');
 export const wellness = doc.getArray<WellnessEntry>('wellness');
 export const messages = doc.getArray<Message>('messages');

@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Copy, Check, ShieldAlert, Lock } from 'lucide-react';
+import { Copy, Check, ShieldAlert, Lock, Fingerprint, Loader2 } from 'lucide-react';
 import { env } from '../../config/env';
 
 export function AdminDashboard() {
-    const { user, token } = useAuth();
+    const { user, token, passkeySupported, registerPasskey } = useAuth();
     const [inviteCode, setInviteCode] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [passkeyLoading, setPasskeyLoading] = useState(false);
+    const [passkeyStatus, setPasskeyStatus] = useState<{ success?: boolean; message?: string } | null>(null);
 
     // Import env for host
     const PARTYKIT_HOST = env.PARTYKIT_HOST;
@@ -40,6 +42,26 @@ export function AdminDashboard() {
         navigator.clipboard.writeText(inviteCode);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
+    };
+
+    const handleRegisterPasskey = async () => {
+        setPasskeyLoading(true);
+        setPasskeyStatus(null);
+
+        const deviceName = navigator.userAgent.includes('iPhone') ? 'iPhone'
+            : navigator.userAgent.includes('Android') ? 'Android'
+                : navigator.userAgent.includes('Mac') ? 'Mac'
+                    : navigator.userAgent.includes('Windows') ? 'Windows PC'
+                        : 'Device';
+
+        const result = await registerPasskey(deviceName);
+
+        if (result.success) {
+            setPasskeyStatus({ success: true, message: 'Passkey registered successfully!' });
+        } else {
+            setPasskeyStatus({ success: false, message: result.error || 'Failed to register passkey' });
+        }
+        setPasskeyLoading(false);
     };
 
     if (user?.role !== 'admin' && user?.role !== 'parent') {
@@ -120,6 +142,49 @@ export function AdminDashboard() {
                         )}
                     </div>
                 </div>
+
+                {/* Passkey Registration Card */}
+                {passkeySupported && (
+                    <div className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4">
+                        <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                                <h3 className="font-semibold flex items-center gap-2">
+                                    <Fingerprint className="w-4 h-4 text-purple-500" />
+                                    Passkey Security
+                                </h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Use Face ID or fingerprint for faster login.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
+                            <button
+                                onClick={handleRegisterPasskey}
+                                disabled={passkeyLoading}
+                                className="w-full py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {passkeyLoading ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        <span>Registering...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Fingerprint className="w-4 h-4" />
+                                        <span>Register Passkey</span>
+                                    </>
+                                )}
+                            </button>
+
+                            {passkeyStatus && (
+                                <p className={`text-sm text-center ${passkeyStatus.success ? 'text-emerald-500' : 'text-red-400'}`}>
+                                    {passkeyStatus.message}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

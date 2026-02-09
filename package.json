@@ -12,6 +12,8 @@
     "start:signaling": "node src/server/signaling.js"
   },
   "dependencies": {
+    "@simplewebauthn/browser": "^13.2.2",
+    "@simplewebauthn/server": "^13.2.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/uuid": "^10.0.0",

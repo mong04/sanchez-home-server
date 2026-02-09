@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Lock, ArrowRight, Loader2 } from 'lucide-react';
+import { Lock, ArrowRight, Loader2, Fingerprint } from 'lucide-react';
 
 export function InviteScreen() {
-    const { login } = useAuth();
+    const { login, passkeySupported, hasPasskeys, loginWithPasskey } = useAuth();
     const [code, setCode] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [isPasskeyLoading, setIsPasskeyLoading] = useState(false);
     const [error, setError] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -19,6 +20,17 @@ export function InviteScreen() {
             setCode('');
         }
         setIsLoading(false);
+    };
+
+    const handlePasskeyLogin = async () => {
+        setIsPasskeyLoading(true);
+        setError(false);
+
+        const success = await loginWithPasskey();
+        if (!success) {
+            setError(true);
+        }
+        setIsPasskeyLoading(false);
     };
 
     return (
@@ -98,6 +110,33 @@ export function InviteScreen() {
                                 )}
                             </div>
                         </button>
+
+                        {/* Passkey Login - only show if passkeys registered */}
+                        {passkeySupported && hasPasskeys && (
+                            <>
+                                <div className="relative flex items-center gap-4 my-2">
+                                    <div className="flex-1 h-px bg-slate-800" />
+                                    <span className="text-xs text-slate-600 uppercase tracking-wider">or</span>
+                                    <div className="flex-1 h-px bg-slate-800" />
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={handlePasskeyLogin}
+                                    disabled={isPasskeyLoading}
+                                    className="w-full bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-xl px-4 py-3.5 flex items-center justify-center gap-3 transition-all duration-300 hover:scale-[1.02]"
+                                >
+                                    {isPasskeyLoading ? (
+                                        <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+                                    ) : (
+                                        <>
+                                            <Fingerprint className="w-5 h-5 text-indigo-400" />
+                                            <span className="font-medium text-slate-300">Login with Passkey</span>
+                                        </>
+                                    )}
+                                </button>
+                            </>
+                        )}
                     </form>
                 </div>
 

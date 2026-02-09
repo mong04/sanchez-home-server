@@ -1,6 +1,13 @@
 import type * as Party from "partykit/server";
 import { onConnect } from "y-partykit";
 import { signToken, verifyToken, validateInviteCode } from "./auth";
+import {
+    generatePasskeyRegistrationOptions,
+    verifyPasskeyRegistration,
+    generatePasskeyAuthOptions,
+    verifyPasskeyAuthentication,
+    type ProfileWithPasskeys,
+} from "./passkey";
 
 // Allowed origins for CORS - restrict to actual deployment domains
 const ALLOWED_ORIGINS = [
@@ -24,7 +31,7 @@ function getCorsHeaders(origin: string | null): Record<string, string> {
     return {
         "Access-Control-Allow-Origin": allowedOrigin,
         "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Recovery-Key",
         "Access-Control-Allow-Credentials": "true",
     };
 }
@@ -64,6 +71,31 @@ export default class Server implements Party.Server {
                 return Response.json({ token }, { headers: CORS_HEADERS });
             }
             return Response.json({ error: "Invalid code" }, { status: 401, headers: CORS_HEADERS });
+        }
+
+        // --- ADMIN: EMERGENCY RECOVERY (No Auth Required - uses separate secret) ---
+        if (url.pathname.endsWith("/admin/recover") && req.method === "POST") {
+            const recoveryKey = req.headers.get("X-Recovery-Key");
+            const expectedKey = this.room.env.RECOVERY_SECRET as string | undefined;
+
+            if (!expectedKey) {
+                console.error('❌ [Recovery] RECOVERY_SECRET not configured');
+                return Response.json({ error: "Recovery not configured" }, { status: 500, headers: CORS_HEADERS });
+            }
+
+            if (recoveryKey !== expectedKey) {
+                console.log('❌ [Recovery] Invalid recovery key attempt');
+                return Response.json({ error: "Forbidden" }, { status: 403, headers: CORS_HEADERS });
+            }
+
+            // Generate recovery invite code
+            const code = crypto.randomUUID().replace(/-/g, '').substring(0, 16).toUpperCase();
+            const invites = await this.room.storage.get<string[]>("invites") || [];
+            invites.push(code);
+            await this.room.storage.put("invites", invites);
+
+            console.log('🔐 [Recovery] Emergency invite code generated');
+            return Response.json({ code, message: "Recovery code generated successfully" }, { headers: CORS_HEADERS });
         }
 
         // --- AUTH: VERIFY TOKEN FOR REQUESTS ---
@@ -142,6 +174,98 @@ export default class Server implements Party.Server {
             console.log('🔐 [Admin] New invite code generated');
 
             return Response.json({ code: newCode }, { headers: CORS_HEADERS });
+        }
+
+        // --- PASSKEY: REGISTRATION OPTIONS ---
+        if (url.pathname.endsWith("/passkey/register/options") && req.method === "POST") {
+            const body = await req.json() as { profileId: string; deviceName?: string };
+            const profiles = await this.room.storage.get<ProfileWithPasskeys[]>("profiles") || [];
+            const profile = profiles.find(p => p.id === body.profileId);
+
+            if (!profile) {
+                return Response.json({ error: "Profile not found" }, { status: 404, headers: CORS_HEADERS });
+            }
+
+            const options = await generatePasskeyRegistrationOptions(profile, origin);
+            return Response.json(options, { headers: CORS_HEADERS });
+        }
+
+        // --- PASSKEY: REGISTRATION VERIFY ---
+        if (url.pathname.endsWith("/passkey/register/verify") && req.method === "POST") {
+            const body = await req.json() as { profileId: string; registration: any; deviceName?: string };
+            const profiles = await this.room.storage.get<ProfileWithPasskeys[]>("profiles") || [];
+            const profileIndex = profiles.findIndex(p => p.id === body.profileId);
+
+            if (profileIndex === -1) {
+                return Response.json({ error: "Profile not found" }, { status: 404, headers: CORS_HEADERS });
+            }
+
+            const result = await verifyPasskeyRegistration(
+                body.profileId,
+                body.registration,
+                origin,
+                body.deviceName
+            );
+
+            if (!result.success || !result.credential) {
+                return Response.json({ error: result.error }, { status: 400, headers: CORS_HEADERS });
+            }
+
+            // Add passkey to profile
+            if (!profiles[profileIndex].passkeys) {
+                profiles[profileIndex].passkeys = [];
+            }
+            profiles[profileIndex].passkeys!.push(result.credential);
+            await this.room.storage.put("profiles", profiles);
+
+            console.log('🔑 [Passkey] Registered for:', profiles[profileIndex].name);
+            return Response.json({ success: true }, { headers: CORS_HEADERS });
+        }
+
+        // --- PASSKEY: AUTH OPTIONS (No auth required) ---
+        if (url.pathname.endsWith("/passkey/auth/options") && req.method === "POST") {
+            const profiles = await this.room.storage.get<ProfileWithPasskeys[]>("profiles") || [];
+            const { options, sessionId } = await generatePasskeyAuthOptions(profiles, origin);
+
+            // Store sessionId in response for client to send back
+            return Response.json({ ...options, sessionId }, { headers: CORS_HEADERS });
+        }
+
+        // --- PASSKEY: AUTH VERIFY (No auth required) ---
+        if (url.pathname.endsWith("/passkey/auth/verify") && req.method === "POST") {
+            const body = await req.json() as { authentication: any; sessionId?: string };
+            const profiles = await this.room.storage.get<ProfileWithPasskeys[]>("profiles") || [];
+
+            const result = await verifyPasskeyAuthentication(
+                body.authentication,
+                profiles,
+                origin,
+                body.sessionId
+            );
+
+            if (!result.success || !result.profile) {
+                return Response.json({ error: result.error }, { status: 401, headers: CORS_HEADERS });
+            }
+
+            // Update counter in storage
+            await this.room.storage.put("profiles", profiles);
+
+            // Issue JWT for the authenticated profile
+            const jwtToken = await signToken({
+                sub: result.profile.id,
+                name: result.profile.name,
+                role: result.profile.role
+            });
+
+            console.log('🔑 [Passkey] Authenticated:', result.profile.name);
+            return Response.json({ token: jwtToken, user: result.profile }, { headers: CORS_HEADERS });
+        }
+
+        // --- PASSKEY: CHECK IF ANY REGISTERED ---
+        if (url.pathname.endsWith("/passkey/check") && req.method === "GET") {
+            const profiles = await this.room.storage.get<ProfileWithPasskeys[]>("profiles") || [];
+            const hasPasskeys = profiles.some(p => (p.passkeys || []).length > 0);
+            return Response.json({ hasPasskeys }, { headers: CORS_HEADERS });
         }
 
         return new Response("Not Found", { status: 404, headers: CORS_HEADERS });

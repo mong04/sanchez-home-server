@@ -1,6 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { env } from '../config/env';
 import { updateProviderToken } from '../lib/yjs-provider';
+import {
+    isPasskeySupported,
+    registerPasskey as registerPasskeyClient,
+    authenticateWithPasskey,
+    hasRegisteredPasskeys
+} from '../lib/passkey-utils';
 
 // API Configuration
 const PARTYKIT_HOST = env.PARTYKIT_HOST;
@@ -24,6 +30,11 @@ interface AuthContextType {
     selectProfile: (profileId: string) => Promise<void>;
     createProfile: (profile: Omit<User, 'id'>) => Promise<void>;
     fetchProfiles: () => Promise<void>;
+    // Passkey methods
+    passkeySupported: boolean;
+    hasPasskeys: boolean;
+    registerPasskey: (deviceName?: string) => Promise<{ success: boolean; error?: string }>;
+    loginWithPasskey: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,6 +44,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [token, setToken] = useState<string | null>(null);
     const [profiles, setProfiles] = useState<User[]>([]);
+    const [passkeySupported] = useState(() => isPasskeySupported());
+    const [hasPasskeys, setHasPasskeys] = useState(false);
 
     useEffect(() => {
         // Load state from localStorage on boot
@@ -48,7 +61,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Fetch profiles if we have a token (even a family one)
             fetchProfiles(storedToken);
         }
+
+        // Check if any passkeys are registered
+        checkPasskeys();
     }, []);
+
+    const checkPasskeys = async () => {
+        if (passkeySupported) {
+            const result = await hasRegisteredPasskeys();
+            setHasPasskeys(result);
+        }
+    };
 
     const apiRequest = async (endpoint: string, method: string, body?: any, currentToken?: string | null) => {
         const headers: HeadersInit = {
@@ -142,6 +165,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem('sfos_user');
     };
 
+    // Register a passkey for the current user
+    const registerPasskey = async (deviceName?: string): Promise<{ success: boolean; error?: string }> => {
+        if (!user || !token) {
+            return { success: false, error: 'Must be logged in to register passkey' };
+        }
+        if (!passkeySupported) {
+            return { success: false, error: 'Passkeys not supported on this device' };
+        }
+
+        const result = await registerPasskeyClient(token, user.id, deviceName);
+        if (result.success) {
+            setHasPasskeys(true);
+        }
+        return result;
+    };
+
+    // Login using a registered passkey
+    const loginWithPasskey = async (): Promise<boolean> => {
+        if (!passkeySupported) return false;
+
+        const result = await authenticateWithPasskey();
+        if (result.success && result.token && result.user) {
+            handleUserSession(result.token, result.user);
+            setIsAuthenticated(true);
+            await fetchProfiles(result.token);
+            return true;
+        }
+        return false;
+    };
+
     useEffect(() => {
         console.log("🔌 Auth Provider Config:", {
             host: PARTYKIT_HOST,
@@ -152,7 +205,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     return (
-        <AuthContext.Provider value={{ isAuthenticated, user, token, profiles, login, logout, selectProfile, createProfile, fetchProfiles }}>
+        <AuthContext.Provider value={{
+            isAuthenticated, user, token, profiles,
+            login, logout, selectProfile, createProfile, fetchProfiles,
+            passkeySupported, hasPasskeys, registerPasskey, loginWithPasskey
+        }}>
             {children}
         </AuthContext.Provider>
     );

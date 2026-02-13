@@ -8,17 +8,12 @@ import {
     hasRegisteredPasskeys
 } from '../lib/passkey-utils';
 
+import type { User } from '../types/schema';
+
 // API Configuration
 const PARTYKIT_HOST = env.PARTYKIT_HOST;
 const PROTOCOL = window.location.protocol === 'https:' ? 'https:' : 'http:';
 const API_URL = `${PROTOCOL}//${PARTYKIT_HOST}/parties/main/sanchez-family-os-v1`;
-
-interface User {
-    id: string;
-    name: string;
-    role: 'admin' | 'parent' | 'kid';
-    avatar?: string;
-}
 
 interface AuthContextType {
     isAuthenticated: boolean;
@@ -29,6 +24,7 @@ interface AuthContextType {
     logout: () => void;
     selectProfile: (profileId: string) => Promise<void>;
     createProfile: (profile: Omit<User, 'id'>) => Promise<void>;
+    updateProfile: (profileId: string, updates: Partial<User>) => Promise<void>;
     fetchProfiles: () => Promise<void>;
     // Passkey methods
     passkeySupported: boolean;
@@ -40,26 +36,25 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [user, setUser] = useState<User | null>(null);
-    const [token, setToken] = useState<string | null>(null);
+    // Hydrate auth state synchronously from localStorage to prevent flash of airlock on refresh
+    const [isAuthenticated, setIsAuthenticated] = useState(() => {
+        return !!localStorage.getItem('sfos_token');
+    });
+    const [user, setUser] = useState<User | null>(() => {
+        const storedUser = localStorage.getItem('sfos_user');
+        return storedUser ? JSON.parse(storedUser) : null;
+    });
+    const [token, setToken] = useState<string | null>(() => {
+        return localStorage.getItem('sfos_token');
+    });
     const [profiles, setProfiles] = useState<User[]>([]);
     const [passkeySupported] = useState(() => isPasskeySupported());
     const [hasPasskeys, setHasPasskeys] = useState(false);
 
     useEffect(() => {
-        // Load state from localStorage on boot
-        const storedToken = localStorage.getItem('sfos_token');
-        const storedUser = localStorage.getItem('sfos_user');
-
-        if (storedToken) {
-            setToken(storedToken);
-            setIsAuthenticated(true);
-            if (storedUser) {
-                setUser(JSON.parse(storedUser));
-            }
-            // Fetch profiles if we have a token (even a family one)
-            fetchProfiles(storedToken);
+        // Fetch profiles and check passkeys on boot (async operations only)
+        if (token) {
+            fetchProfiles(token);
         }
 
         // Check if any passkeys are registered
@@ -146,6 +141,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const updateProfile = async (profileId: string, updates: Partial<User>) => {
+        try {
+            await apiRequest(`/family/profiles/${profileId}`, 'PATCH', updates);
+            // If updating current user, update session
+            if (user?.id === profileId) {
+                const updatedUser = { ...user, ...updates };
+                handleUserSession(token || '', updatedUser);
+            }
+            // Refresh profiles list
+            await fetchProfiles();
+        } catch (error) {
+            console.error("Failed to update profile:", error);
+        }
+    };
+
     const handleUserSession = (newToken: string, newUser: User) => {
         setToken(newToken);
         setUser(newUser);
@@ -207,7 +217,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return (
         <AuthContext.Provider value={{
             isAuthenticated, user, token, profiles,
-            login, logout, selectProfile, createProfile, fetchProfiles,
+            login, logout, selectProfile, createProfile, updateProfile, fetchProfiles,
             passkeySupported, hasPasskeys, registerPasskey, loginWithPasskey
         }}>
             {children}

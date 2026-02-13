@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { useCalendar } from '../../hooks/use-calendar';
 import { useWellness } from '../../hooks/use-wellness';
 import { useMessenger } from '../../hooks/use-messenger';
@@ -11,12 +12,8 @@ import { format } from 'date-fns';
 const CURRENT_USER_ID = "dad-uuid";
 
 
-// Props interface
-interface CommandCenterProps {
-    onNavigate: (tab: string, subTab?: string) => void;
-}
-
-export function CommandCenter({ onNavigate }: CommandCenterProps) {
+export function CommandCenter() {
+    const navigate = useNavigate();
     const { events } = useCalendar();
     const { logEntry } = useWellness();
     const { messages } = useMessenger();
@@ -62,7 +59,7 @@ export function CommandCenter({ onNavigate }: CommandCenterProps) {
                 {/* 1. Today's Mission (Chores) */}
                 <Card
                     className="border-l-4 border-l-emerald-500 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100 cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => onNavigate('organizer', 'chores')}
+                    onClick={() => navigate('/organizer')}
                 >
                     <CardHeader className="pb-2">
                         <CardTitle className="text-lg flex items-center space-x-2">
@@ -107,7 +104,7 @@ export function CommandCenter({ onNavigate }: CommandCenterProps) {
                 {/* 2. Financial Forecast (Bills) */}
                 <Card
                     className="border-l-4 border-l-rose-500 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-150 cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => onNavigate('organizer', 'finance')}
+                    onClick={() => navigate('/organizer')}
                 >
                     <CardHeader className="pb-2">
                         <CardTitle className="text-lg flex items-center space-x-2">
@@ -157,7 +154,7 @@ export function CommandCenter({ onNavigate }: CommandCenterProps) {
                 {/* 3. Family Scoreboard */}
                 <Card
                     className="border-l-4 border-l-amber-500 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200 cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => onNavigate('organizer', 'chores')}
+                    onClick={() => navigate('/organizer')}
                 >
                     <CardHeader className="pb-2">
                         <CardTitle className="text-lg flex items-center space-x-2">
@@ -213,7 +210,7 @@ export function CommandCenter({ onNavigate }: CommandCenterProps) {
                 {/* Up Next Widget */}
                 <Card
                     className="col-span-1 md:col-span-2 lg:col-span-1 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-500 cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => onNavigate('smart-planner')}
+                    onClick={() => navigate('/planner')}
                 >
                     <CardHeader className="pb-2">
                         <div className="flex items-center space-x-2 text-sky-500 dark:text-sky-400">
@@ -248,7 +245,7 @@ export function CommandCenter({ onNavigate }: CommandCenterProps) {
                 {/* Unread Messages Widget */}
                 <Card
                     className="animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300 cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => onNavigate('family-messenger')}
+                    onClick={() => navigate('/messenger')}
                 >
                     <CardContent className="h-full flex flex-col items-center justify-center text-center p-6 space-y-4">
                         <div className="relative group">

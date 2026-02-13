@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { CommandCenter } from '../../src/components/modules/CommandCenter';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as Y from 'yjs';
@@ -73,7 +74,7 @@ describe('CommandCenter Integration', () => {
             }]);
         });
 
-        render(<CommandCenter />);
+        render(<MemoryRouter><CommandCenter /></MemoryRouter>);
 
         // Check for Chore
         expect(screen.getByText('Today\'s Mission')).toBeInTheDocument();
@@ -105,7 +106,7 @@ describe('CommandCenter Integration', () => {
             ]);
         });
 
-        render(<CommandCenter />);
+        render(<MemoryRouter><CommandCenter /></MemoryRouter>);
 
         // Wait for sorting? It's synchronous in hook default state
         expect(screen.getByText('Family Scoreboard')).toBeInTheDocument();

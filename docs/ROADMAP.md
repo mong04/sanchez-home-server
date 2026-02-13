@@ -44,20 +44,30 @@
     - [x] Vulnerability scans, privacy reviews, backup testing.
     - [x] Create Auditor Agent.
 
-- **Phase 10a: Secure Family Foundation (Authentication)**
-    - [ ] **Data Layer**: Implement `onConnect` token validation in PartyKit.
-    - [ ] **Admin**: "Invite Code" generation strategy (Environment Variables).
-    - [ ] **UI**: "Airlock" screen (Invite Code entry).
-    - [ ] **Onboarding**: "Create Profile" screen (Name, Avatar, Role) immediately after unlock.
+- **Phase 11: The "Financial Command" Deep Dive (Envelope Style)**
+    - *Status*: **IN PROGRESS**
+    - *Docs*: [Finance Roadmap](finance/ROADMAP.md), [PRD](finance/PRD.md), [Risk Register](finance/RISK_REGISTER.md)
+    - *Skills Required*: `microsoft/zustand-store-ts` (State), `ibelick/ui-skills` (Premium UI)
+    - [ ] **Income Allocator**: Manual "Payday Wizard" to assign funds to envelopes.
+    - [ ] **"Safe-to-Spend"**: Velocity Gauge (Daily Allowance / Days Remaining).
+    - [ ] **Quick-Entry UI**: Mobile-optimized input with "Smart Chips".
 
-- **Phase 10b: Deep Feature Iteration (Gamification & Profiles)**
-    - [ ] **User Profiles**: Yjs User Store (Avatar, Name, Role).
-    - [ ] **Gamification**: XP System, Streaks, Leaderboards.
-    - [ ] **Family Beta**: Feedback integration, A/B variants.
+- **Phase 12: The "Master Chef" Deep Dive (Cronometer/SuperCook Style)**
+    - *Skills Required*: `microsoft/zustand-store-ts` (Complex Inventory State)
+    - [ ] **"What's in the Fridge?"**: Reverse recipe search.
+    - [ ] **Flex-ivore Mode**: Toggle for Strict Carnivore vs Keto-Flex (Net Carbs).
+    - [ ] **Pantry Manager**: Inventory tracking integrated with Shopping List.
 
-- **Phase 11: Launch Prep & Monitoring**
-    - [ ] Staged deployment, onboarding docs, monitoring setup, release notes.
-    - [ ] Final Go for launch.
+- **Phase 13: The "Family Sync" Deep Dive (Cozi Style)**
+    - *Skills Required*: `microsoft/m365-agents-ts` (Calendar logic patterns)
+    - [ ] **Smart Events**: Bills & Chores auto-appear on Calendar.
+    - [ ] **Context Aware**: "Quiet Mode" (no chore pings after bedtime).
+    - [ ] **Unified Alerts**: Centralized push logic.
+
+- **Phase 14: The "Memory Lane" Deep Dive (Day One Style)**
+    - *Skills Required*: `framer-motion` (Animation patterns)
+    - [ ] **"On This Day"**: Widget surfacing past memories.
+    - [ ] **Visual Timeline**: Horizontal scrollable family history.
 
 ## 🛠 Recommended Agent Skills
 To accelerate the remaining phases, I have identified the following high-value skills from the [Awesome Agent Skills](https://github.com/VoltAgent/awesome-agent-skills) repository:

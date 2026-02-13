@@ -1,73 +1,67 @@
+
 /**
- * Image Compression Utility
- * 
- * Resizes images to max 800px width/height and converts to JPEG (quality 0.7)
- * to keep sync payload small (under 500KB).
+ * Compresses an image file to a Base64 string under a specific size limit (default 100KB).
+ * Resizes to max 300x300px and converts to WebP/JPEG with quality adjustment.
  */
+export async function compressImage(file: File, maxSizeKB = 100): Promise<string> {
+    const MAX_WIDTH = 300;
+    const MAX_HEIGHT = 300;
 
-export async function compressImage(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-        const MAX_WIDTH = 800;
-        const QUALITY = 0.7;
-        const MAX_SIZE_BYTES = 500 * 1024; // 500KB
+    // Helper to read file as data URL
+    const readFileAsDataURL = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    };
 
-        if (!file.type.match(/image.*/)) {
-            reject(new Error('File is not an image'));
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-
-        reader.onload = (event) => {
+    // Helper to load image
+    const loadImage = (src: string): Promise<HTMLImageElement> => {
+        return new Promise((resolve, reject) => {
             const img = new Image();
-            img.src = event.target?.result as string;
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = src;
+        });
+    };
 
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
+    const originalDataUrl = await readFileAsDataURL(file);
+    const img = await loadImage(originalDataUrl);
 
-                // Resize logic
-                if (width > MAX_WIDTH) {
-                    height = Math.round((height * MAX_WIDTH) / width);
-                    width = MAX_WIDTH;
-                }
+    // Calculate new dimensions
+    let width = img.width;
+    let height = img.height;
 
-                canvas.width = width;
-                canvas.height = height;
+    if (width > MAX_WIDTH || height > MAX_HEIGHT) {
+        const ratio = Math.min(MAX_WIDTH / width, MAX_HEIGHT / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+    }
 
-                const ctx = canvas.getContext('2d');
-                if (!ctx) {
-                    reject(new Error('Could not get canvas context'));
-                    return;
-                }
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
 
-                ctx.drawImage(img, 0, 0, width, height);
+    if (!ctx) throw new Error('Could not get canvas context');
 
-                // Compress to JPEG
-                const dataUrl = canvas.toDataURL('image/jpeg', QUALITY);
+    ctx.drawImage(img, 0, 0, width, height);
 
-                // Check size
-                // standard base64 size calculation: (bytes * 4/3)
-                // approximate check is fine
-                if (dataUrl.length * 0.75 > MAX_SIZE_BYTES) {
-                    // If still too big, try aggressive compression
-                    const aggressiveUrl = canvas.toDataURL('image/jpeg', 0.5);
-                    if (aggressiveUrl.length * 0.75 > MAX_SIZE_BYTES) {
-                        reject(new Error('Image is too large even after compression'));
-                        return;
-                    }
-                    resolve(aggressiveUrl);
-                    return;
-                }
+    // Iterative compression
+    let quality = 0.9;
+    let result = canvas.toDataURL('image/webp', quality);
 
-                resolve(dataUrl);
-            };
+    // Fallback to jpeg if webp is not supported or larger (though webp usually smaller)
+    if (result.length > maxSizeKB * 1024 * 1.33) { // Base64 is ~33% larger than binary
+        result = canvas.toDataURL('image/jpeg', quality);
+    }
 
-            img.onerror = (err) => reject(err);
-        };
+    while (result.length > maxSizeKB * 1024 * 1.33 && quality > 0.1) {
+        quality -= 0.1;
+        result = canvas.toDataURL('image/webp', quality);
+    }
 
-        reader.onerror = (err) => reject(err);
-    });
+    return result;
 }

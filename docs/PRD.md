@@ -41,4 +41,4 @@ See [ROADMAP.md](./ROADMAP.md) for the detailed 11-Phase execution plan.
 - **Phase 8**: Advanced QA & Testing.
 - **Phase 9**: Security & Privacy Audit.
 - **Phase 10**: Beta Iteration & UX Refinements.
-- **Phase 11**: Launch Prep & Monitoring.
+- **Phase 11**: The "Financial Command" Deep Dive (Envelope Style).

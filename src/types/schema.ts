@@ -69,9 +69,31 @@ export interface WellnessEntry {
 
 export interface Message {
     id: string;
+    senderId: string;
     sender: string;
     text: string;
     imageBase64?: string;
     timestamp: number;
     expiresAt: number;
+}
+
+export interface User {
+    id: string;
+    name: string;
+    role: 'admin' | 'parent' | 'kid';
+    avatar?: {
+        type: 'preset' | 'upload';
+        value: string;
+    };
+    xp: number;
+    level: number;
+    streaks: {
+        current: number;
+        max: number;
+        lastActivityDate: number;
+    };
+    badges: string[];
+    vibe?: string;
+    lastAvatarUpdate?: number; // Timestamp of last avatar change for XP limiting
+    activityLog: Record<string, number>; // Date string (YYYY-MM-DD) -> Count
 }

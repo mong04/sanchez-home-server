@@ -2,7 +2,7 @@ import * as Y from 'yjs';
 import { IndexeddbPersistence } from 'y-indexeddb';
 import YPartyKitProvider from "y-partykit/provider";
 import { SYNC_CONFIG } from '../config/sync';
-import type { InfinityLogItem, Chore, Bill, ShoppingItem, CalendarEvent, WellnessEntry, Message } from '../types/schema';
+import type { InfinityLogItem, Chore, Bill, ShoppingItem, CalendarEvent, WellnessEntry, Message, User } from '../types/schema';
 
 // 1. Create the shared document
 export const doc = new Y.Doc();
@@ -100,3 +100,4 @@ export const shoppingList = doc.getArray<ShoppingItem>('shoppingList');
 export const calendar = doc.getArray<CalendarEvent>('calendar');
 export const wellness = doc.getArray<WellnessEntry>('wellness');
 export const messages = doc.getArray<Message>('messages');
+export const users = doc.getMap<User>('users');

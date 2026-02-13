@@ -1,12 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Shield, Baby, CheckCircle2 } from 'lucide-react';
+import { Shield, Baby, CheckCircle2, Camera } from 'lucide-react';
+import { AvatarEditor } from '../profile/AvatarEditor';
 
 export function ProfileSetup() {
     const { createProfile } = useAuth();
     const [name, setName] = useState('');
     const [role, setRole] = useState<'parent' | 'kid' | 'admin'>('kid');
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Avatar State
+    const [avatar, setAvatar] = useState<{ type: 'preset' | 'upload', value: string }>({
+        type: 'preset',
+        value: '🦁' // Default
+    });
+    const [showAvatarEditor, setShowAvatarEditor] = useState(false);
+
+    // Update default avatar when name changes (if still using default preset type)
+    useEffect(() => {
+        if (avatar.type === 'preset' && name.trim()) {
+            // Optional: You could dynamically change the preset based on name hash if desired,
+            // but for now let's stick to a static default or the user's choice.
+            // If we want to use the DiceBear logic as a fallback for 'value' if it was a URL:
+            // setAvatar(prev => ({ ...prev, value: `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}` }));
+            // BUT, since we are using emoji presets now, let's just keep the user selection or default.
+        }
+    }, [name]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -18,7 +37,12 @@ export function ProfileSetup() {
             await createProfile({
                 name: name.trim(),
                 role: role,
-                avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`,
+                avatar: avatar,
+                xp: 0,
+                level: 1,
+                streaks: { current: 0, max: 0, lastActivityDate: 0 },
+                badges: [],
+                activityLog: {}
             });
         } catch (error) {
             console.error(error);
@@ -27,31 +51,57 @@ export function ProfileSetup() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans text-slate-100">
+        <div className="min-h-screen bg-background flex items-center justify-center p-4 font-sans text-foreground">
             <div className="w-full max-w-lg space-y-8 animate-in fade-in zoom-in-95 duration-500">
 
                 <div className="text-center space-y-2">
-                    <h1 className="text-3xl font-bold tracking-tight text-white">
+                    <h1 className="text-3xl font-bold tracking-tight text-foreground">
                         Welcome to the Family
                     </h1>
-                    <p className="text-slate-400">
+                    <p className="text-muted-foreground">
                         Let's get your profile set up.
                     </p>
                 </div>
 
-                <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-2xl">
+                <div className="bg-card/50 backdrop-blur-xl border border-border rounded-2xl p-8 shadow-2xl">
                     <form onSubmit={handleSubmit} className="space-y-8">
+
+                        {/* Avatar Selection */}
+                        <div className="flex flex-col items-center justify-center space-y-4">
+                            <div className="relative group">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAvatarEditor(true)}
+                                    className="w-32 h-32 rounded-full bg-muted border-4 border-border flex items-center justify-center overflow-hidden transition-transform group-hover:scale-105 group-hover:border-primary"
+                                >
+                                    {avatar.type === 'preset' ? (
+                                        <span className="text-6xl select-none">{avatar.value}</span>
+                                    ) : (
+                                        <img src={avatar.value} alt="Avatar" className="w-full h-full object-cover" />
+                                    )}
+
+                                    {/* Overlay */}
+                                    <div className="absolute inset-0 bg-background/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Camera className="w-8 h-8 text-foreground" />
+                                    </div>
+                                </button>
+                                <div className="absolute bottom-0 right-0 bg-primary rounded-full p-2 border-4 border-card">
+                                    <Camera className="w-4 h-4 text-primary-foreground" />
+                                </div>
+                            </div>
+                            <span className="text-sm text-muted-foreground">Tap to change avatar</span>
+                        </div>
 
                         {/* Name Input */}
                         <div className="space-y-4">
-                            <label className="text-sm font-medium text-slate-300 uppercase tracking-wide">
+                            <label className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
                                 What should we call you?
                             </label>
                             <input
                                 type="text"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
-                                className="w-full bg-slate-950/50 border border-slate-700 rounded-xl px-4 py-4 text-lg text-white placeholder:text-slate-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
+                                className="w-full bg-background/50 border border-input rounded-xl px-4 py-4 text-lg text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:ring-1 focus:ring-ring outline-none transition-all"
                                 placeholder="e.g. Dad, Mom, Leo..."
                                 autoFocus
                             />
@@ -59,7 +109,7 @@ export function ProfileSetup() {
 
                         {/* Role Selection */}
                         <div className="space-y-4">
-                            <label className="text-sm font-medium text-slate-300 uppercase tracking-wide">
+                            <label className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
                                 Select your role
                             </label>
                             <div className="grid grid-cols-2 gap-4">
@@ -69,15 +119,15 @@ export function ProfileSetup() {
                                     className={`
                     relative p-4 rounded-xl border-2 transition-all duration-300 flex flex-col items-center gap-3
                     ${role === 'parent'
-                                            ? 'border-indigo-500 bg-indigo-500/10 text-white shadow-lg shadow-indigo-500/20'
-                                            : 'border-slate-800 bg-slate-950/30 text-slate-500 hover:border-slate-700 hover:bg-slate-900'
+                                            ? 'border-primary bg-primary/10 text-foreground shadow-lg shadow-primary/20'
+                                            : 'border-border bg-card/30 text-muted-foreground hover:border-muted-foreground/30 hover:bg-muted'
                                         }
                   `}
                                 >
-                                    <Shield className={`w-8 h-8 ${role === 'parent' ? 'text-indigo-400' : 'text-slate-600'}`} />
+                                    <Shield className={`w-8 h-8 ${role === 'parent' ? 'text-primary' : 'text-muted-foreground/50'}`} />
                                     <span className="font-semibold">Parent</span>
                                     {role === 'parent' && (
-                                        <div className="absolute top-3 right-3 text-indigo-400">
+                                        <div className="absolute top-3 right-3 text-primary">
                                             <CheckCircle2 className="w-5 h-5" />
                                         </div>
                                     )}
@@ -89,12 +139,12 @@ export function ProfileSetup() {
                                     className={`
                     relative p-4 rounded-xl border-2 transition-all duration-300 flex flex-col items-center gap-3
                     ${role === 'kid'
-                                            ? 'border-emerald-500 bg-emerald-500/10 text-white shadow-lg shadow-emerald-500/20'
-                                            : 'border-slate-800 bg-slate-950/30 text-slate-500 hover:border-slate-700 hover:bg-slate-900'
+                                            ? 'border-emerald-500 bg-emerald-500/10 text-foreground shadow-lg shadow-emerald-500/20'
+                                            : 'border-border bg-card/30 text-muted-foreground hover:border-muted-foreground/30 hover:bg-muted'
                                         }
                   `}
                                 >
-                                    <Baby className={`w-8 h-8 ${role === 'kid' ? 'text-emerald-400' : 'text-slate-600'}`} />
+                                    <Baby className={`w-8 h-8 ${role === 'kid' ? 'text-emerald-400' : 'text-muted-foreground/50'}`} />
                                     <span className="font-semibold">Kid</span>
                                     {role === 'kid' && (
                                         <div className="absolute top-3 right-3 text-emerald-400">
@@ -111,8 +161,8 @@ export function ProfileSetup() {
                             className={`
                 w-full py-4 rounded-xl font-bold tracking-wide transition-all duration-300
                 ${!name || isSubmitting
-                                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                                    : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:-translate-y-0.5'
+                                    ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                                    : 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:-translate-y-0.5'
                                 }
               `}
                         >
@@ -121,6 +171,15 @@ export function ProfileSetup() {
                     </form>
                 </div>
             </div>
+
+            {/* Avatar Editor Modal */}
+            {showAvatarEditor && (
+                <AvatarEditor
+                    currentAvatar={avatar}
+                    onSave={(type, value) => setAvatar({ type, value })}
+                    onClose={() => setShowAvatarEditor(false)}
+                />
+            )}
         </div>
     );
 }

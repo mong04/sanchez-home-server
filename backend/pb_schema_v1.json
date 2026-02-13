@@ -1,0 +1,109 @@
+[
+  {
+    "id": "pbc_3142635823",
+    "name": "_superusers",
+    "type": "auth",
+    "system": true,
+    "fields": [
+      { "id": "text3208210256", "name": "id", "type": "text", "system": true, "primaryKey": true, "required": true },
+      { "id": "password901924565", "name": "password", "type": "password", "system": true, "required": true },
+      { "id": "text2504183744", "name": "tokenKey", "type": "text", "system": true, "required": true },
+      { "id": "email3885137012", "name": "email", "type": "email", "system": true, "required": true },
+      { "id": "bool1547992806", "name": "emailVisibility", "type": "bool", "system": true },
+      { "id": "bool256245529", "name": "verified", "type": "bool", "system": true },
+      { "id": "autodate2990389176", "name": "created", "type": "autodate", "system": true, "onCreate": true, "onUpdate": false },
+      { "id": "autodate3332085495", "name": "updated", "type": "autodate", "system": true, "onCreate": true, "onUpdate": true }
+    ]
+  },
+  {
+    "id": "_pb_users_auth_",
+    "name": "users",
+    "type": "auth",
+    "system": false,
+    "listRule": "id = @request.auth.id || @request.auth.role = 'admin'",
+    "viewRule": "id = @request.auth.id || @request.auth.role = 'admin'",
+    "createRule": "@request.auth.role = 'admin'",
+    "updateRule": "id = @request.auth.id || @request.auth.role = 'admin'",
+    "deleteRule": "@request.auth.role = 'admin'",
+    "fields": [
+      { "id": "text3208210256", "name": "id", "type": "text", "system": true, "primaryKey": true, "required": true },
+      { "id": "password901924565", "name": "password", "type": "password", "system": true, "required": true },
+      { "id": "text2504183744", "name": "tokenKey", "type": "text", "system": true, "required": true },
+      { "id": "email3885137012", "name": "email", "type": "email", "system": true, "required": true },
+      { "id": "bool1547992806", "name": "emailVisibility", "type": "bool", "system": true },
+      { "id": "bool256245529", "name": "verified", "type": "bool", "system": true },
+      { "id": "text1579384326", "name": "name", "type": "text", "system": false },
+      { "id": "file376926767", "name": "avatar", "type": "file", "system": false, "maxSelect": 1, "maxSize": 5242880 },
+      { "id": "users_role", "name": "role", "type": "select", "system": false, "required": true, "values": ["admin", "partner", "child"], "maxSelect": 1 },
+      { "id": "autodate2990389176", "name": "created", "type": "autodate", "system": true, "onCreate": true, "onUpdate": false },
+      { "id": "autodate3332085495", "name": "updated", "type": "autodate", "system": true, "onCreate": true, "onUpdate": true }
+    ]
+  },
+  {
+    "id": "pbc_1111111111",
+    "name": "accounts",
+    "type": "base",
+    "listRule": "@request.auth.role = 'admin' || owner = @request.auth.id || (@request.auth.role = 'partner' && is_joint = true)",
+    "viewRule": "@request.auth.role = 'admin' || owner = @request.auth.id || (@request.auth.role = 'partner' && is_joint = true)",
+    "createRule": "@request.auth.role = 'admin'",
+    "updateRule": "@request.auth.role = 'admin'",
+    "deleteRule": "@request.auth.role = 'admin'",
+    "fields": [
+      { "id": "text3208210256", "name": "id", "type": "text", "system": true, "primaryKey": true, "required": true },
+      { "id": "accounts_name", "name": "name", "type": "text", "required": true },
+      { "id": "accounts_type", "name": "type", "type": "select", "values": ["checking", "savings", "credit", "cash"], "maxSelect": 1, "required": true },
+      { "id": "accounts_balance", "name": "balance", "type": "number" },
+      { "id": "accounts_owner", "name": "owner", "type": "relation", "collectionId": "_pb_users_auth_", "maxSelect": 1, "required": true },
+      { "id": "accounts_is_joint", "name": "is_joint", "type": "bool" },
+      { "id": "autodate2990389176", "name": "created", "type": "autodate", "system": true, "onCreate": true, "onUpdate": false },
+      { "id": "autodate3332085495", "name": "updated", "type": "autodate", "system": true, "onCreate": true, "onUpdate": true }
+    ]
+  },
+  {
+    "id": "pbc_2222222222",
+    "name": "envelopes",
+    "type": "base",
+    "listRule": "@request.auth.role = 'admin' || owner = @request.auth.id || (@request.auth.role = 'partner' && visibility = 'public')",
+    "viewRule": "@request.auth.role = 'admin' || owner = @request.auth.id || (@request.auth.role = 'partner' && visibility = 'public')",
+    "createRule": "@request.auth.role = 'admin'",
+    "updateRule": "@request.auth.role = 'admin' || owner = @request.auth.id",
+    "deleteRule": "@request.auth.role = 'admin'",
+    "fields": [
+      { "id": "text3208210256", "name": "id", "type": "text", "system": true, "primaryKey": true, "required": true },
+      { "id": "envelopes_name", "name": "name", "type": "text", "required": true },
+      { "id": "envelopes_budget_limit", "name": "budget_limit", "type": "number" },
+      { "id": "envelopes_current_balance", "name": "current_balance", "type": "number" },
+      { "id": "envelopes_owner", "name": "owner", "type": "relation", "collectionId": "_pb_users_auth_", "maxSelect": 1, "required": true },
+      { "id": "envelopes_visibility", "name": "visibility", "type": "select", "values": ["public", "private", "hidden"], "maxSelect": 1, "required": true },
+      { "id": "envelopes_icon", "name": "icon", "type": "text" },
+      { "id": "autodate2990389176", "name": "created", "type": "autodate", "system": true, "onCreate": true, "onUpdate": false },
+      { "id": "autodate3332085495", "name": "updated", "type": "autodate", "system": true, "onCreate": true, "onUpdate": true }
+    ]
+  },
+  {
+    "id": "pbc_3333333333",
+    "name": "transactions",
+    "type": "base",
+    "listRule": "@request.auth.role = 'admin' || envelope.owner = @request.auth.id || (@request.auth.role = 'partner' && envelope.visibility = 'public')",
+    "viewRule": "@request.auth.role = 'admin' || envelope.owner = @request.auth.id || (@request.auth.role = 'partner' && envelope.visibility = 'public')",
+    "createRule": "@request.auth.id != ''",
+    "updateRule": "@request.auth.role = 'admin' || envelope.owner = @request.auth.id",
+    "deleteRule": "@request.auth.role = 'admin' || envelope.owner = @request.auth.id",
+    "fields": [
+      { "id": "text3208210256", "name": "id", "type": "text", "system": true, "primaryKey": true, "required": true },
+      { "id": "transactions_payee", "name": "payee", "type": "text", "required": true },
+      { "id": "transactions_amount", "name": "amount", "type": "number", "required": true },
+      { "id": "transactions_date", "name": "date", "type": "date", "required": true },
+      { "id": "transactions_envelope", "name": "envelope", "type": "relation", "collectionId": "pbc_2222222222", "maxSelect": 1, "required": true },
+      { "id": "transactions_account", "name": "account", "type": "relation", "collectionId": "pbc_1111111111", "maxSelect": 1, "required": true },
+      { "id": "transactions_notes", "name": "notes", "type": "text" },
+      { "id": "transactions_status", "name": "status", "type": "select", "values": ["cleared", "pending"], "maxSelect": 1, "required": true },
+      { "id": "autodate2990389176", "name": "created", "type": "autodate", "system": true, "onCreate": true, "onUpdate": false },
+      { "id": "autodate3332085495", "name": "updated", "type": "autodate", "system": true, "onCreate": true, "onUpdate": true }
+    ]
+  },
+  { "id": "pbc_4275539003", "name": "_authOrigins", "type": "base", "system": true, "fields": [{ "id": "text3208210256", "name": "id", "type": "text", "system": true, "primaryKey": true }] },
+  { "id": "pbc_2281828961", "name": "_externalAuths", "type": "base", "system": true, "fields": [{ "id": "text3208210256", "name": "id", "type": "text", "system": true, "primaryKey": true }] },
+  { "id": "pbc_2279338944", "name": "_mfas", "type": "base", "system": true, "fields": [{ "id": "text3208210256", "name": "id", "type": "text", "system": true, "primaryKey": true }] },
+  { "id": "pbc_1638494021", "name": "_otps", "type": "base", "system": true, "fields": [{ "id": "text3208210256", "name": "id", "type": "text", "system": true, "primaryKey": true }] }
+]

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useMessenger } from '../../hooks/use-messenger';
+import { useAuth } from '../../context/AuthContext';
 import { Button } from '../common/Button';
 import { Input } from '../common/Input';
 import { MessageSquare, Send, Image as ImageIcon, CheckCheck, X } from 'lucide-react';
@@ -8,12 +9,27 @@ import { cn } from '../../lib/utils';
 import { format } from 'date-fns';
 
 export function FamilyMessenger() {
+    const { user, profiles } = useAuth(); // Get current user and all profiles
     const { messages, sendMessage } = useMessenger();
     const [inputText, setInputText] = useState('');
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    // Helper to find avatar
+    const getAvatar = (senderId: string, senderName: string) => {
+        const profile = profiles.find(p => p.id === senderId);
+        if (profile?.avatar) {
+            return profile.avatar; // Returns { type, value }
+        }
+        // Fallback to old behavior but wrapped in object
+        return {
+            type: 'url' as const,
+            value: `https://api.dicebear.com/7.x/avataaars/svg?seed=${senderName}`
+        };
+    };
+
+    // ... (keep useEffect for auto-scroll) ...
     // Auto-scroll to bottom
     useEffect(() => {
         if (scrollRef.current) {
@@ -25,11 +41,12 @@ export function FamilyMessenger() {
         e?.preventDefault();
         if (!inputText.trim() && !selectedImage) return;
 
-        sendMessage(inputText.trim(), selectedImage ?? undefined);
+        sendMessage(inputText.trim(), selectedImage ?? undefined, user ? { id: user.id, name: user.name } : undefined);
         setInputText('');
         setSelectedImage(null);
     };
 
+    // ... (keep handleFileSelect, triggerFileInput) ...
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
@@ -47,7 +64,7 @@ export function FamilyMessenger() {
 
     return (
         <div className="flex flex-col h-[calc(100vh-6rem)] md:h-[calc(100vh-4rem)] bg-background relative selection:bg-primary/20 rounded-xl overflow-hidden border border-border shadow-sm">
-            {/* Header - Fixed at top */}
+            {/* Header ... */}
             <div className="flex-none p-4 border-b border-border bg-background/95 backdrop-blur z-20 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -60,7 +77,7 @@ export function FamilyMessenger() {
                 </div>
             </div>
 
-            {/* Message Area - Scrollable middle section */}
+            {/* Message Area */}
             <div className="flex-1 overflow-y-auto min-h-0 bg-background/50 p-4 md:p-6 space-y-6 scroll-smooth">
                 {messages.length === 0 ? (
                     <EmptyState />
@@ -68,7 +85,8 @@ export function FamilyMessenger() {
                     <div className="flex flex-col space-y-4 max-w-3xl mx-auto w-full pb-2">
                         <AnimatePresence initial={false}>
                             {messages.map((msg) => {
-                                const isMe = msg.sender === 'User';
+                                const isMe = msg.senderId === user?.id || (msg.sender === 'User' && !msg.senderId); // Fallback for old messages
+                                const avatar = getAvatar(msg.senderId, msg.sender);
 
                                 return (
                                     <motion.div
@@ -77,14 +95,26 @@ export function FamilyMessenger() {
                                         animate={{ opacity: 1, y: 0, scale: 1 }}
                                         layout
                                         className={cn(
-                                            "flex w-full",
+                                            "flex w-full gap-2",
                                             isMe ? "justify-end" : "justify-start"
                                         )}
                                     >
+                                        {!isMe && (
+                                            <div className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden self-end mb-1 border border-border bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                                                {avatar.type === 'preset' ? (
+                                                    <span className="text-lg select-none leading-none">{avatar.value}</span>
+                                                ) : (
+                                                    <img src={avatar.value} alt={msg.sender} className="w-full h-full object-cover" />
+                                                )}
+                                            </div>
+                                        )}
+
                                         <div className={cn(
                                             "flex max-w-[85%] md:max-w-[70%] flex-col",
                                             isMe ? "items-end" : "items-start"
                                         )}>
+                                            {!isMe && <span className="text-[10px] text-muted-foreground ml-1 mb-1">{msg.sender}</span>}
+
                                             <div className={cn(
                                                 "relative px-4 py-3 text-sm md:text-base shadow-sm break-words",
                                                 isMe
@@ -103,7 +133,7 @@ export function FamilyMessenger() {
 
                                             <div className="flex items-center gap-1 mt-1 px-1">
                                                 <span className="text-[10px] text-muted-foreground/60 font-medium">
-                                                    {format(msg.timestamp, 'h:mm a')}
+                                                    {format(new Date(msg.timestamp), 'h:mm a')}
                                                 </span>
                                                 {isMe && (
                                                     <CheckCheck className="w-3 h-3 text-primary/60" />

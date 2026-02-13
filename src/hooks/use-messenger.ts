@@ -35,10 +35,11 @@ export function useMessenger() {
         };
     }, [cleanupExpiredMessages]);
 
-    const sendMessage = useCallback((text: string, imageBase64?: string) => {
+    const sendMessage = useCallback((text: string, imageBase64?: string, sender?: { id: string, name: string }) => {
         const newMessage: Message = {
             id: uuidv4(),
-            sender: 'User', // In a real app this would be dynamic
+            senderId: sender?.id || 'anonymous',
+            sender: sender?.name || 'User',
             text,
             imageBase64,
             timestamp: Date.now(),

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="64" fill="#0f172a"/>
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#38bdf8"/>
+      <stop offset="100%" style="stop-color:#6366f1"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(256,256)">
+    <!-- Shield shape -->
+    <path d="M0-140 L120-80 L120,40 Q120,120 0,160 Q-120,120 -120,40 L-120-80 Z" fill="url(#g)" opacity="0.9"/>
+    <!-- Home icon inside shield -->
+    <path d="M0-60 L-50,-20 L-50,40 L-20,40 L-20,10 L20,10 L20,40 L50,40 L50,-20 Z" fill="#0f172a" opacity="0.8"/>
+  </g>
+</svg>

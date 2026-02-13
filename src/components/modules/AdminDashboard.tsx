@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Copy, Check, ShieldAlert, Lock, Fingerprint, Loader2 } from 'lucide-react';
 import { env } from '../../config/env';
+import { UserManagement } from '../admin/UserManagement';
 
 export function AdminDashboard() {
     const { user, token, passkeySupported, registerPasskey } = useAuth();
+    const [activeTab, setActiveTab] = useState<'overview' | 'users'>('overview');
     const [inviteCode, setInviteCode] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -89,103 +91,150 @@ export function AdminDashboard() {
                 </div>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {/* Invite Code Card */}
-                <div className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4">
-                    <div className="flex items-start justify-between">
-                        <div className="space-y-1">
-                            <h3 className="font-semibold flex items-center gap-2">
-                                <Lock className="w-4 h-4 text-indigo-500" />
-                                Invite System
-                            </h3>
-                            <p className="text-sm text-muted-foreground">
-                                Generate a one-time code for new devices.
-                            </p>
-                        </div>
-                    </div>
+            {/* Segmented Control (iPadOS Style) */}
+            <div
+                className="relative flex p-1 bg-muted/80 backdrop-blur-md rounded-xl border border-border/50 shadow-inner"
+                role="tablist"
+                aria-label="Admin Sections"
+            >
+                {/* Sliding Background */}
+                <div
+                    className={`absolute top-1 bottom-1 rounded-lg bg-background shadow-sm transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${activeTab === 'overview' ? 'left-1 w-[calc(50%-4px)]' : 'left-[50%] w-[calc(50%-4px)]'
+                        }`}
+                    aria-hidden="true"
+                />
 
-                    <div className="space-y-4">
-                        {!inviteCode ? (
-                            <button
-                                onClick={generateCode}
-                                disabled={isLoading}
-                                className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors font-medium disabled:opacity-50"
-                            >
-                                {isLoading ? "Generating..." : "Generate New Code"}
-                            </button>
-                        ) : (
-                            <div className="bg-muted/50 p-4 rounded-lg flex items-center justify-between group relative overflow-hidden animate-in fade-in zoom-in-95">
-                                <code className="font-mono text-lg font-bold tracking-wider text-primary">
-                                    {inviteCode}
-                                </code>
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={copyToClipboard}
-                                        className="p-2 hover:bg-background rounded-md transition-colors"
-                                        title="Copy to clipboard"
-                                    >
-                                        {copied ? (
-                                            <Check className="w-5 h-5 text-emerald-500" />
-                                        ) : (
-                                            <Copy className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                                        )}
-                                    </button>
-                                    <button
-                                        onClick={() => setInviteCode(null)}
-                                        className="p-2 hover:bg-background rounded-md transition-colors text-xs text-muted-foreground"
-                                        title="Clear"
-                                    >
-                                        Clear
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
+                <button
+                    role="tab"
+                    aria-selected={activeTab === 'overview'}
+                    aria-controls="overview-panel"
+                    id="overview-tab"
+                    onClick={() => setActiveTab('overview')}
+                    className={`relative z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-200 ${activeTab === 'overview'
+                        ? 'text-foreground'
+                        : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                >
+                    System Overview
+                </button>
+                <button
+                    role="tab"
+                    aria-selected={activeTab === 'users'}
+                    aria-controls="users-panel"
+                    id="users-tab"
+                    onClick={() => setActiveTab('users')}
+                    className={`relative z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-200 ${activeTab === 'users'
+                        ? 'text-foreground'
+                        : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                >
+                    User Management
+                </button>
+            </div>
 
-                {/* Passkey Registration Card */}
-                {passkeySupported && (
+            {activeTab === 'overview' ? (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 animate-in fade-in slide-in-from-left-4 duration-300">
+                    {/* Invite Code Card */}
                     <div className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4">
                         <div className="flex items-start justify-between">
                             <div className="space-y-1">
                                 <h3 className="font-semibold flex items-center gap-2">
-                                    <Fingerprint className="w-4 h-4 text-purple-500" />
-                                    Passkey Security
+                                    <Lock className="w-4 h-4 text-primary" />
+                                    Invite System
                                 </h3>
                                 <p className="text-sm text-muted-foreground">
-                                    Use Face ID or fingerprint for faster login.
+                                    Generate a one-time code for new devices.
                                 </p>
                             </div>
                         </div>
 
-                        <div className="space-y-3">
-                            <button
-                                onClick={handleRegisterPasskey}
-                                disabled={passkeyLoading}
-                                className="w-full py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
-                            >
-                                {passkeyLoading ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                        <span>Registering...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Fingerprint className="w-4 h-4" />
-                                        <span>Register Passkey</span>
-                                    </>
-                                )}
-                            </button>
-
-                            {passkeyStatus && (
-                                <p className={`text-sm text-center ${passkeyStatus.success ? 'text-emerald-500' : 'text-red-400'}`}>
-                                    {passkeyStatus.message}
-                                </p>
+                        <div className="space-y-4">
+                            {!inviteCode ? (
+                                <button
+                                    onClick={generateCode}
+                                    disabled={isLoading}
+                                    className="w-full py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors font-medium disabled:opacity-50"
+                                >
+                                    {isLoading ? "Generating..." : "Generate New Code"}
+                                </button>
+                            ) : (
+                                <div className="bg-muted/50 p-4 rounded-lg flex items-center justify-between group relative overflow-hidden animate-in fade-in zoom-in-95">
+                                    <code className="font-mono text-lg font-bold tracking-wider text-primary">
+                                        {inviteCode}
+                                    </code>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={copyToClipboard}
+                                            className="p-2 hover:bg-background rounded-md transition-colors"
+                                            title="Copy to clipboard"
+                                        >
+                                            {copied ? (
+                                                <Check className="w-5 h-5 text-emerald-500" />
+                                            ) : (
+                                                <Copy className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                                            )}
+                                        </button>
+                                        <button
+                                            onClick={() => setInviteCode(null)}
+                                            className="p-2 hover:bg-background rounded-md transition-colors text-xs text-muted-foreground"
+                                            title="Clear"
+                                        >
+                                            Clear
+                                        </button>
+                                    </div>
+                                </div>
                             )}
                         </div>
                     </div>
-                )}
-            </div>
+
+                    {/* Passkey Registration Card */}
+                    {passkeySupported && (
+                        <div className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4">
+                            <div className="flex items-start justify-between">
+                                <div className="space-y-1">
+                                    <h3 className="font-semibold flex items-center gap-2">
+                                        <Fingerprint className="w-4 h-4 text-primary" />
+                                        Passkey Security
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        Use Face ID or fingerprint for faster login.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-3">
+                                <button
+                                    onClick={handleRegisterPasskey}
+                                    disabled={passkeyLoading}
+                                    className="w-full py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                                >
+                                    {passkeyLoading ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            <span>Registering...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Fingerprint className="w-4 h-4" />
+                                            <span>Register Passkey</span>
+                                        </>
+                                    )}
+                                </button>
+
+                                {passkeyStatus && (
+                                    <p className={`text-sm text-center ${passkeyStatus.success ? 'text-emerald-500' : 'text-red-400'}`}>
+                                        {passkeyStatus.message}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            ) : (
+                <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                    <UserManagement />
+                </div>
+            )}
         </div>
     );
 }

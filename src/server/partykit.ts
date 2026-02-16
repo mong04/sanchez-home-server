@@ -146,7 +146,7 @@ export default class Server implements Party.Server {
                     }
 
                     // Issue a temporary token for profile selection
-                    const token = await signToken({ sub: "pending", name: "Pending", role: "kid" });
+                    const token = await signToken({ sub: "pending", name: "Pending", role: "kid" }, this.room.env.PARTYKIT_SECRET as string);
                     return Response.json({ token }, { headers: CORS_HEADERS });
                 }
 
@@ -218,7 +218,7 @@ export default class Server implements Party.Server {
                     sub: result.profile.id,
                     name: result.profile.name,
                     role: result.profile.role
-                });
+                }, this.room.env.PARTYKIT_SECRET as string);
 
                 console.log('🔑 [Passkey] Authenticated:', result.profile.name);
                 return Response.json({ token: jwtToken, user: result.profile }, { headers: CORS_HEADERS });
@@ -234,7 +234,7 @@ export default class Server implements Party.Server {
             const authHeader = req.headers.get("Authorization");
             const token = authHeader?.split(" ")[1];
             const POCKETBASE_URL = (this.room.env.POCKETBASE_URL as string) || "http://127.0.0.1:8090";
-            const payload = token ? await verifyToken(token, POCKETBASE_URL) : null;
+            const payload = token ? await verifyToken(token, POCKETBASE_URL, this.room.env.PARTYKIT_SECRET as string) : null;
 
             if (!payload) {
                 return Response.json({ error: "Unauthorized" }, { status: 401, headers: CORS_HEADERS });
@@ -255,7 +255,7 @@ export default class Server implements Party.Server {
                     sub: profile.id,
                     name: profile.name,
                     role: profile.role
-                });
+                }, this.room.env.PARTYKIT_SECRET as string);
 
                 return Response.json({ token, user: profile }, { headers: CORS_HEADERS });
             }
@@ -286,7 +286,7 @@ export default class Server implements Party.Server {
                         sub: profile.id,
                         name: profile.name,
                         role: profile.role
-                    });
+                    }, this.room.env.PARTYKIT_SECRET as string);
 
                     return Response.json({ token: newToken, user: profile }, { headers: CORS_HEADERS });
                 }
@@ -427,11 +427,8 @@ export default class Server implements Party.Server {
                 const setupToken = await signToken({
                     sub: body.userId,
                     name: body.email,
-                    role: 'kid', // Temporary role for the setup session
-                    // We add custom claims if needed, but signToken limits to JWTPayload
-                    // We can overload 'name' or use storage to track 'type' if needed.
-                    // For now, simpler is better.
-                });
+                    role: 'kid',
+                }, this.room.env.PARTYKIT_SECRET as string);
 
                 const baseUrl = origin || "https://sanchez-family-os.vercel.app";
                 const magicLink = `${baseUrl}/?setup_token=${setupToken}`;
@@ -454,7 +451,8 @@ export default class Server implements Party.Server {
                 // A normal PB token (if illegally obtained) allows resetting password?
                 // Users can reset their own password.
                 // But check if 'token' is valid.
-                const payload = await verifyToken(body.token);
+                const POCKETBASE_URL_SETUP = (this.room.env.POCKETBASE_URL as string) || "http://127.0.0.1:8090";
+                const payload = await verifyToken(body.token, POCKETBASE_URL_SETUP, this.room.env.PARTYKIT_SECRET as string);
 
                 if (!payload) {
                     return Response.json({ error: "Invalid or expired link" }, { status: 401, headers: CORS_HEADERS });
@@ -548,7 +546,7 @@ export default class Server implements Party.Server {
 
         // Verify token properly (Async)
         const POCKETBASE_URL = (this.room.env.POCKETBASE_URL as string) || "http://127.0.0.1:8090";
-        const payload = token ? await verifyToken(token, POCKETBASE_URL) : null;
+        const payload = token ? await verifyToken(token, POCKETBASE_URL, this.room.env.PARTYKIT_SECRET as string) : null;
 
         console.log('🔍 [PartyKit] Token verification result:', {
             valid: !!payload,

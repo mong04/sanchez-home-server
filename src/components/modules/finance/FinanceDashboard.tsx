@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Plus, Users, Wallet, TrendingUp, Grid3X3 } from 'lucide-react';
+import { Loader2, Plus, Wallet, TrendingUp, Grid3X3 } from 'lucide-react';
 import { startOfMonth, endOfMonth } from 'date-fns';
 import { EnvelopeCard } from './EnvelopeCard';
 import { TransactionFab } from './TransactionFab';
 import { BudgetAllocation } from './Budgets/BudgetAllocation';
 import { SpendingTrendChart } from './Charts/SpendingTrendChart';
 import { CreateEnvelopeModal } from './CreateEnvelopeModal';
-import { useEnvelopes, useTransactions, useAddTransaction } from '../../../hooks/useFinanceData';
+import { useEnvelopes, useAddTransaction } from '../../../hooks/useFinanceData';
 import { cn } from '../../../lib/utils';
 
 type Tab = 'joint' | 'personal' | 'savings';

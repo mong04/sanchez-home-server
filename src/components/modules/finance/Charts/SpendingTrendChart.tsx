@@ -58,7 +58,7 @@ export function SpendingTrendChart({
                     <XAxis dataKey="date" tick={{ fontSize: 12 }} interval="preserveStartEnd" />
                     <YAxis tick={{ fontSize: 12 }} tickFormatter={(value) => `$${value}`} />
                     <Tooltip
-                        formatter={(value: any) => [`$${Number(value).toFixed(2)}`, undefined]}
+                        formatter={(value: number | undefined) => [`$${Number(value || 0).toFixed(2)}`, undefined]}
                         contentStyle={{
                             backgroundColor: 'hsl(var(--card))',
                             borderColor: 'hsl(var(--border))',

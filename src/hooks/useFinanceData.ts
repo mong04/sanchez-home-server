@@ -69,12 +69,12 @@ export function useAddTransaction() {
 
             return { previousTransactions };
         },
-        onError: (err, newTransaction, context) => {
+        onError: (_err, newTransaction, context) => {
             if (context?.previousTransactions && newTransaction.envelope) {
                 queryClient.setQueryData([Collections.Transactions, newTransaction.envelope], context.previousTransactions);
             }
         },
-        onSuccess: (data, variables) => {
+        onSuccess: (_data, variables) => {
             if (variables.envelope) {
                 queryClient.invalidateQueries({ queryKey: [Collections.Transactions, variables.envelope] });
                 queryClient.invalidateQueries({ queryKey: [Collections.Envelopes] });

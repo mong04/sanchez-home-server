@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import {
-    Users, ShieldAlert, Trash2, Shield
+    Users, ShieldAlert, Trash2, Shield, Key
 } from 'lucide-react';
 import { env } from '../../config/env';
 import { DeleteUserModal } from './DeleteUserModal';
+import { AdminResetPasswordModal } from './AdminResetPasswordModal';
 
 interface User {
     id: string;
@@ -21,6 +22,7 @@ export function UserManagement() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
+    const [userToReset, setUserToReset] = useState<User | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
     // Import env for host
@@ -167,6 +169,17 @@ export function UserManagement() {
                             </button>
                         </div>
 
+                        {/* Reset Password Action (Mobile) */}
+                        <div className="absolute top-4 right-14">
+                            <button
+                                onClick={() => setUserToReset(user)}
+                                className="p-2 text-muted-foreground hover:bg-indigo-500/10 hover:text-indigo-500 rounded-lg transition-colors"
+                                title="Reset Password"
+                            >
+                                <Key className="w-5 h-5" />
+                            </button>
+                        </div>
+
                         {user.id !== currentUser?.id && (
                             <div className="mt-3 relative">
                                 <select
@@ -272,6 +285,14 @@ export function UserManagement() {
                                         >
                                             <Trash2 className="w-4 h-4 group-hover/delete:scale-110 transition-transform" />
                                         </button>
+
+                                        <button
+                                            onClick={() => setUserToReset(user)}
+                                            className="group/reset p-2 rounded-lg text-muted-foreground hover:text-indigo-500 hover:bg-indigo-500/10 transition-all duration-200 mr-1"
+                                            title="Reset Password"
+                                        >
+                                            <Key className="w-4 h-4 group-hover/reset:scale-110 transition-transform" />
+                                        </button>
                                     </td>
                                 </tr>
                             ))}
@@ -287,6 +308,14 @@ export function UserManagement() {
                 onClose={() => setUserToDelete(null)}
                 onConfirm={confirmDelete}
                 isDeleting={isDeleting}
+            />
+
+            {/* Reset Password Modal */}
+            <AdminResetPasswordModal
+                isOpen={!!userToReset}
+                userId={userToReset?.id || null}
+                userName={userToReset?.name || 'Unknown User'}
+                onClose={() => setUserToReset(null)}
             />
         </div>
     );

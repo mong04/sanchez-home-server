@@ -1,224 +1,331 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import Cookies from 'js-cookie';
 import { env } from '../config/env';
 import { updateProviderToken } from '../lib/yjs-provider';
-import {
-    isPasskeySupported,
-    registerPasskey as registerPasskeyClient,
-    authenticateWithPasskey,
-    hasRegisteredPasskeys
-} from '../lib/passkey-utils';
-
+import { pb } from '../lib/pocketbase';
 import type { User } from '../types/schema';
 
-// API Configuration
-const PARTYKIT_HOST = env.PARTYKIT_HOST;
-const PROTOCOL = window.location.protocol === 'https:' ? 'https:' : 'http:';
-const API_URL = `${PROTOCOL}//${PARTYKIT_HOST}/parties/main/sanchez-family-os-v1`;
+// API Configuration (Cleaned up)
+// const PARTYKIT_HOST = env.PARTYKIT_HOST; // Removed as unused
 
 interface AuthContextType {
     isAuthenticated: boolean;
     user: User | null;
     token: string | null;
     profiles: User[];
-    login: (code: string) => Promise<boolean>;
+    login: (code: string) => Promise<boolean>; // Deprecated but kept for type compat temporarily
+    loginWithPocketBase: (email: string, pass: string) => Promise<boolean>;
     logout: () => void;
-    selectProfile: (profileId: string) => Promise<void>;
+    selectProfile: (profileId: string) => Promise<void>; // Will be used for identity linking later
     createProfile: (profile: Omit<User, 'id'>) => Promise<void>;
     updateProfile: (profileId: string, updates: Partial<User>) => Promise<void>;
-    fetchProfiles: () => Promise<void>;
-    // Passkey methods
-    passkeySupported: boolean;
-    hasPasskeys: boolean;
-    registerPasskey: (deviceName?: string) => Promise<{ success: boolean; error?: string }>;
-    loginWithPasskey: () => Promise<boolean>;
+    fetchProfiles: (currentToken?: string) => Promise<User[]>;
+    updatePassword: (current: string, newPass: string, confirmPass: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-    // Hydrate auth state synchronously from localStorage to prevent flash of airlock on refresh
-    const [isAuthenticated, setIsAuthenticated] = useState(() => {
-        return !!localStorage.getItem('sfos_token');
-    });
+    // Single Source of Truth: PocketBase AuthStore
+    const [isAuthenticated, setIsAuthenticated] = useState(pb.authStore.isValid);
+    const [token, setToken] = useState(pb.authStore.token);
+    // Initialize from local storage to prevent "Profile Selection" flash
     const [user, setUser] = useState<User | null>(() => {
-        const storedUser = localStorage.getItem('sfos_user');
-        return storedUser ? JSON.parse(storedUser) : null;
-    });
-    const [token, setToken] = useState<string | null>(() => {
-        return localStorage.getItem('sfos_token');
+        const stored = localStorage.getItem('sfos_user');
+        return stored ? JSON.parse(stored) : null;
     });
     const [profiles, setProfiles] = useState<User[]>([]);
-    const [passkeySupported] = useState(() => isPasskeySupported());
-    const [hasPasskeys, setHasPasskeys] = useState(false);
 
     useEffect(() => {
-        // Fetch profiles and check passkeys on boot (async operations only)
-        if (token) {
-            fetchProfiles(token);
-        }
+        // Sync state with PocketBase AuthStore changes
+        const unsubscribe = pb.authStore.onChange((token, model) => {
+            console.log('🔐 [Auth] PB State Change:', { valid: !!token, user: model?.email });
+            setToken(token);
+            setIsAuthenticated(!!token);
 
-        // Check if any passkeys are registered
-        checkPasskeys();
-    }, []);
+            // Sync to Cookie for Middleware
+            if (token) {
+                Cookies.set('auth_token', token, {
+                    secure: window.location.protocol === 'https:',
+                    sameSite: 'Strict',
+                    expires: 7 // 7 days (matching PB default often)
+                });
+            } else {
+                Cookies.remove('auth_token');
+            }
 
-    const checkPasskeys = async () => {
-        if (passkeySupported) {
-            const result = await hasRegisteredPasskeys();
-            setHasPasskeys(result);
-        }
-    };
+            // Sync with PartyKit/Yjs
+            updateProviderToken(token);
 
-    const apiRequest = async (endpoint: string, method: string, body?: any, currentToken?: string | null) => {
-        const headers: HeadersInit = {
-            'Content-Type': 'application/json',
-        };
-        const authToken = currentToken || token;
-        if (authToken) {
-            headers['Authorization'] = `Bearer ${authToken}`;
-        }
-
-        const response = await fetch(`${API_URL}${endpoint}`, {
-            method,
-            headers,
-            body: body ? JSON.stringify(body) : undefined,
+            // AUTO-LINK: If logged in, fetch profiles and try to resolve identity
+            if (token && model) {
+                fetchProfiles(token).then((fetchedProfiles) => {
+                    const pkId = model.partykit_id; // Custom field we added to PB schema
+                    if (pkId) {
+                        const profile = fetchedProfiles.find(p => p.id === pkId);
+                        if (profile) {
+                            console.log("🔗 [Auth] Auto-linked to profile:", profile.name);
+                            setUser(profile);
+                            localStorage.setItem('sfos_user', JSON.stringify(profile));
+                        }
+                    } else {
+                        // TODO: Implement "Smart Match" or prompt user to select profile
+                        console.log("⚠️ [Auth] No PartyKit ID linked to this PB User.");
+                        setUser(null);
+                    }
+                });
+            } else {
+                setUser(null);
+                setProfiles([]);
+                localStorage.removeItem('sfos_user');
+            }
         });
 
-        if (!response.ok) {
-            throw new Error(await response.text());
+        // Initial sync on mount
+        if (pb.authStore.isValid && pb.authStore.token) {
+            // trigger initial fetch/link logic manually since onChange might not fire if already valid
+            // simulate the logic above:
+            const token = pb.authStore.token;
+            const model = pb.authStore.model;
+
+            // Ensure cookie is set on hydration (in case it was cleared or expired but localStorage persisted)
+            Cookies.set('auth_token', token, {
+                secure: window.location.protocol === 'https:',
+                sameSite: 'Strict',
+                expires: 7
+            });
+
+            updateProviderToken(token);
+
+            fetchProfiles(token).then((fetchedProfiles) => {
+                const pkId = model?.partykit_id;
+                if (pkId) {
+                    const profile = fetchedProfiles.find(p => p.id === pkId);
+                    if (profile) {
+                        setUser(profile);
+                        localStorage.setItem('sfos_user', JSON.stringify(profile));
+                    }
+                }
+            });
         }
-        return response.json();
+
+        return () => unsubscribe();
+    }, []);
+
+    // Helper for PartyKit URL
+    const getPartyKitUrl = () => {
+        const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+        return `${protocol}//${env.PARTYKIT_HOST}`;
     };
 
-    const fetchProfiles = async (currentToken?: string) => {
+    const fetchProfiles = async (currentToken?: string): Promise<User[]> => {
+        const tokenToUse = currentToken || token;
+        if (!tokenToUse) return [];
+
         try {
-            const data = await apiRequest('/family/profiles', 'GET', undefined, currentToken);
-            setProfiles(data);
-        } catch (error) {
-            // If 401, clear the invalid session
-            if (error instanceof Error && error.message.includes('Unauthorized')) {
-                console.log('⚠️ Session expired, clearing...');
-                logout();
+            // PartyKit now validates PB token via `verifyPocketBaseToken`
+            const response = await fetch(`${getPartyKitUrl()}/family/profiles`, {
+                headers: {
+                    'Authorization': `Bearer ${tokenToUse}`
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json() as User[];
+                setProfiles(data);
+                return data;
             } else {
-                console.error("Failed to fetch profiles:", error);
+                console.warn("Failed to fetch profiles:", response.status);
+                return [];
             }
+        } catch (error) {
+            console.error("Failed to fetch profiles", error);
+            return [];
         }
     };
 
+    // DEPRECATED: Legacy Invite Code Login
     const login = async (code: string) => {
+        console.warn("⚠️ Legacy Invite Code login is deprecated. Use loginWithPocketBase.", code);
+        return false;
+    };
+
+    const loginWithPocketBase = async (email: string, pass: string) => {
         try {
-            const data = await apiRequest('/auth/login', 'POST', { code });
-            const newToken = data.token;
-
-            setToken(newToken);
-            setIsAuthenticated(true);
-            localStorage.setItem('sfos_token', newToken);
-
-            // Immediately fetch profiles with the new token
-            await fetchProfiles(newToken);
+            await pb.collection('users').authWithPassword(email, pass);
+            // onChange hook above handles state updates
             return true;
         } catch (error) {
-            console.error("Login failed:", error);
+            console.error("PocketBase login failed:", error);
+            // logout() // Optional: clear any partial state
             return false;
         }
     };
 
+    const logout = () => {
+        pb.authStore.clear(); // This triggers the onChange hook, clearing state
+        setUser(null);
+        setProfiles([]);
+        localStorage.removeItem('sfos_token'); // Clean up legacy
+        localStorage.removeItem('sfos_user');  // Clean up legacy & current
+        Cookies.remove('auth_token');
+    };
+
     const selectProfile = async (profileId: string) => {
+        if (!pb.authStore.isValid || !pb.authStore.model) {
+            console.error("Cannot select profile: No authenticated PocketBase user.");
+            return;
+        }
+
         try {
-            const data = await apiRequest('/auth/session', 'POST', { profileId });
-            handleUserSession(data.token, data.user);
+            // 1. Link to PocketBase User
+            const pbUserId = pb.authStore.model.id;
+            await pb.collection('users').update(pbUserId, {
+                partykit_id: profileId
+            });
+
+            // 2. Find and Set User
+            const selectedProfile = profiles.find(p => p.id === profileId);
+            if (selectedProfile) {
+                console.log("🔗 [Auth] Linked existing profile:", selectedProfile.name);
+                setUser(selectedProfile);
+                localStorage.setItem('sfos_user', JSON.stringify(selectedProfile));
+            } else {
+                // If not in current list, fetch it (edge case)
+                const freshProfiles = await fetchProfiles();
+                const freshProfile = freshProfiles.find(p => p.id === profileId);
+                if (freshProfile) {
+                    setUser(freshProfile);
+                    localStorage.setItem('sfos_user', JSON.stringify(freshProfile));
+                }
+            }
+
         } catch (error) {
-            console.error("Failed to select profile:", error);
+            console.error("Error selecting profile:", error);
+            throw error;
         }
     };
 
     const createProfile = async (profileData: Omit<User, 'id'>) => {
+        if (!pb.authStore.isValid || !pb.authStore.model) {
+            console.error("Cannot create profile: No authenticated PocketBase user.");
+            return;
+        }
+
         try {
-            const newProfile = { ...profileData, id: crypto.randomUUID() };
-            const data = await apiRequest('/family/profiles', 'POST', newProfile);
-            handleUserSession(data.token, data.user);
+            // Generate a specialized ID for the profile (distinct from PB User ID)
+            const newProfileId = crypto.randomUUID();
+            const newProfile: User = {
+                ...profileData,
+                id: newProfileId,
+            };
+
+            // 1. Create Profile in PartyKit (Source of Truth for "Social" data)
+            const response = await fetch(`${getPartyKitUrl()}/family/profiles`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` // Use PB token to authorize
+                },
+                body: JSON.stringify(newProfile)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to create profile: ${response.statusText}`);
+            }
+
+            // 2. Link to PocketBase User
+            const pbUserId = pb.authStore.model.id;
+            await pb.collection('users').update(pbUserId, {
+                partykit_id: newProfileId
+            });
+
+            console.log("✅ [Auth] Profile created and linked:", newProfile.name);
+
+            // 3. Update Local State
+            setUser(newProfile);
+            localStorage.setItem('sfos_user', JSON.stringify(newProfile));
+            setProfiles(prev => [...prev, newProfile]);
+
         } catch (error) {
-            console.error("Failed to create profile:", error);
+            console.error("Error creating profile:", error);
+            throw error;
         }
     };
 
     const updateProfile = async (profileId: string, updates: Partial<User>) => {
         try {
-            await apiRequest(`/family/profiles/${profileId}`, 'PATCH', updates);
-            // If updating current user, update session
-            if (user?.id === profileId) {
-                const updatedUser = { ...user, ...updates };
-                handleUserSession(token || '', updatedUser);
+            const response = await fetch(`${getPartyKitUrl()}/family/profiles/${profileId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(updates)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to update profile: ${response.statusText}`);
             }
-            // Refresh profiles list
-            await fetchProfiles();
+
+            const updatedProfile = await response.json();
+
+            // Update local state
+            setProfiles(prev => prev.map(p => p.id === profileId ? updatedProfile : p));
+            if (user?.id === profileId) {
+                setUser(updatedProfile);
+                localStorage.setItem('sfos_user', JSON.stringify(updatedProfile));
+            }
+
         } catch (error) {
-            console.error("Failed to update profile:", error);
+            console.error("Error updating profile:", error);
+            throw error;
         }
     };
 
-    const handleUserSession = (newToken: string, newUser: User) => {
-        setToken(newToken);
-        setUser(newUser);
-        localStorage.setItem('sfos_token', newToken);
-        localStorage.setItem('sfos_user', JSON.stringify(newUser));
 
-        // Update the Yjs provider with the new token
-        updateProviderToken(newToken);
-    };
-
-    const logout = () => {
-        setIsAuthenticated(false);
-        setUser(null);
-        setToken(null);
-        setProfiles([]);
-        localStorage.removeItem('sfos_token');
-        localStorage.removeItem('sfos_user');
-    };
-
-    // Register a passkey for the current user
-    const registerPasskey = async (deviceName?: string): Promise<{ success: boolean; error?: string }> => {
-        if (!user || !token) {
-            return { success: false, error: 'Must be logged in to register passkey' };
-        }
-        if (!passkeySupported) {
-            return { success: false, error: 'Passkeys not supported on this device' };
+    const updatePassword = async (current: string, newPass: string, confirmPass: string) => {
+        if (!pb.authStore.isValid || !pb.authStore.model) {
+            throw new Error("Not authenticated");
         }
 
-        const result = await registerPasskeyClient(token, user.id, deviceName);
-        if (result.success) {
-            setHasPasskeys(true);
+        try {
+            const userId = pb.authStore.model.id;
+            const email = pb.authStore.model.email;
+
+            // 1. Update Password
+            await pb.collection('users').update(userId, {
+                oldPassword: current,
+                password: newPass,
+                passwordConfirm: confirmPass,
+            });
+
+            // 2. Silent Re-Auth to keep session alive
+            await pb.collection('users').authWithPassword(email, newPass);
+
+            console.log("✅ [Auth] Password updated and session refreshed");
+
+        } catch (error: any) {
+            console.error("Failed to update password:", error);
+
+            // Map PocketBase errors to user friendly messages
+            if (error?.status === 400) {
+                const data = error?.response?.data;
+                if (data?.oldPassword) throw new Error("Incorrect current password");
+                if (data?.password) throw new Error(data.password.message);
+                if (data?.passwordConfirm) throw new Error(data.passwordConfirm.message);
+            }
+
+            throw new Error(error.message || "Failed to update password");
         }
-        return result;
     };
-
-    // Login using a registered passkey
-    const loginWithPasskey = async (): Promise<boolean> => {
-        if (!passkeySupported) return false;
-
-        const result = await authenticateWithPasskey();
-        if (result.success && result.token && result.user) {
-            handleUserSession(result.token, result.user);
-            setIsAuthenticated(true);
-            await fetchProfiles(result.token);
-            return true;
-        }
-        return false;
-    };
-
-    useEffect(() => {
-        console.log("🔌 Auth Provider Config:", {
-            host: PARTYKIT_HOST,
-            protocol: PROTOCOL,
-            apiUrl: API_URL,
-            mode: import.meta.env.MODE
-        });
-    }, []);
 
     return (
         <AuthContext.Provider value={{
             isAuthenticated, user, token, profiles,
-            login, logout, selectProfile, createProfile, updateProfile, fetchProfiles,
-            passkeySupported, hasPasskeys, registerPasskey, loginWithPasskey
+            login, loginWithPocketBase, logout,
+            selectProfile, createProfile, updateProfile, fetchProfiles,
+            updatePassword
         }}>
             {children}
         </AuthContext.Provider>

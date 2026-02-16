@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { AlertCircle, Save, X } from 'lucide-react';
+import { AlertCircle, Save } from 'lucide-react';
 import type { EnvelopeRecord } from '../../../../types/pocketbase';
 import { cn } from '../../../../lib/utils';
 import { Button } from '../../../common/Button';

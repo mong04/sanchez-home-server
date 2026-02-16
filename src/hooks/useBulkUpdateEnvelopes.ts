@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { pb } from '../lib/pocketbase';
-import { Collections, EnvelopeRecord } from '../types/pocketbase';
+import { Collections, type EnvelopeRecord } from '../types/pocketbase';
 
 interface BulkUpdateEnvelopeParams {
     updates: { id: string; data: Partial<EnvelopeRecord> }[];

@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronLeft, Delete, Plus, X } from 'lucide-react';
+import { ChevronLeft, Delete, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { Modal } from '../../common/Modal';
 import { Button } from '../../common/Button';

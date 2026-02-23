@@ -26,44 +26,44 @@ export const Leaderboard: React.FC = () => {
     }, []);
 
     return (
-        <div className="bg-card rounded-2xl p-6 shadow-sm border border-border">
-            <h2 className="text-xl font-bold mb-4 flex items-center text-foreground">
+        <div className="bg-card rounded-2xl p-4 md:p-6 shadow-sm border border-border">
+            <h2 className="text-lg md:text-xl font-bold mb-4 flex items-center text-foreground">
                 <span className="text-2xl mr-2">🏆</span> Leaderboard
             </h2>
 
-            <div className="space-y-3">
+            <div className="space-y-2 md:space-y-3">
                 {allUsers.map((user, index) => (
                     <div
                         key={user.id}
-                        className={`flex items-center p-3 rounded-xl transition-colors ${index === 0 ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700' : 'hover:bg-muted'
+                        className={`flex items-center p-2 md:p-3 rounded-xl transition-colors ${index === 0 ? 'bg-warning/10 border border-warning/30 dark:border-warning/20' : 'hover:bg-muted'
                             }`}
                     >
                         {/* Rank */}
-                        <div className={`w-8 font-bold text-center ${index === 0 ? 'text-2xl' : 'text-muted-foreground text-lg'
+                        <div className={`w-6 md:w-8 shrink-0 font-bold text-center ${index === 0 ? 'text-xl md:text-2xl' : 'text-muted-foreground text-base md:text-lg'
                             }`}>
                             {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}
                         </div>
 
                         {/* Avatar */}
-                        <div className="mx-3">
-                            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden border-2 border-background shadow-sm">
+                        <div className="mx-2 md:mx-3 shrink-0">
+                            <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden border-2 border-background shadow-sm">
                                 {user.avatar?.type === 'upload' ? (
                                     <img src={user.avatar.value} alt={user.name} className="w-full h-full object-cover" />
                                 ) : (
-                                    <span className="text-xl">{user.avatar?.value || '👤'}</span>
+                                    <span className="text-base md:text-xl">{user.avatar?.value || '👤'}</span>
                                 )}
                             </div>
                         </div>
 
                         {/* Name & details */}
-                        <div className="flex-1">
-                            <h3 className="font-bold text-foreground text-sm">{user.name}</h3>
-                            <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-                                <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-[10px] font-medium">
+                        <div className="flex-1 min-w-0">
+                            <h3 className="font-bold text-foreground text-xs md:text-sm truncate">{user.name}</h3>
+                            <div className="flex items-center gap-1.5 md:gap-2 text-xs text-muted-foreground">
+                                <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0">
                                     LVL {user.level || 1}
                                 </span>
                                 {user.streaks?.current > 0 && (
-                                    <span className="flex items-center text-orange-500 font-medium">
+                                    <span className="flex items-center text-warning font-medium shrink-0">
                                         <span className="mr-0.5">🔥</span> {user.streaks.current}
                                     </span>
                                 )}
@@ -71,7 +71,7 @@ export const Leaderboard: React.FC = () => {
                         </div>
 
                         {/* XP */}
-                        <div className="font-mono font-bold text-primary text-right">
+                        <div className="font-mono font-bold text-primary text-right text-xs md:text-sm shrink-0 ml-2">
                             {user.xp || 0} XP
                         </div>
                     </div>

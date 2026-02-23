@@ -1,20 +1,16 @@
-# Success Metrics & KPIs - Family Finance Hub
+# Success Metrics: Family Finance Hub
 
-## Quantitative Metrics
-1.  **Usage Frequency**:
-    *   **Target**: Both adults log in at least once daily.
-    *   **Measure**: Daily Active Users (DAU) logs.
-2.  **Transaction Latency**:
-    *   **Target**: Time to enter a transaction < 10 seconds.
-    *   **Measure**: Analytics event timestamps (Start Form -> Submit).
-3.  **Budget Adherence**:
-    *   **Target**: < 5% overspend in "Discretionary" categories.
-    *   **Measure**: Monthly budget variance report.
+## 1. Quantitative Metrics (KPIs)
+-   **Adoption Rate**: % of family members logging at least 1 transaction per week. (Target: >80% of adults).
+-   **Latency**: Average time to add a transaction on mobile. (Target: < 3 seconds).
+-   **Uptime**: System availability during waking hours (7am - 11pm). (Target: 99.9%).
+-   **Bug Rate**: Number of critical sync errors reported post-launch. (Target: 0).
 
-## Qualitative Metrics
-1.  **User Satisfaction (NPS)**:
-    *   **Target**: "9 or 10" from spouse.
-    *   **Measure**: Monthly casual feedback session.
-2.  **Financial Anxiety**:
-    *   **Target**: Reduction in "Can we afford this?" questions.
-    *   **Measure**: Self-reported stress levels regarding finances.
+## 2. Qualitative Metrics
+-   **User Satisfaction**: "How easy is it to check my grocery budget?" (1-5 Scale, Target > 4).
+-   **Trust**: "Do you trust the numbers shown in the dashboard?" (Yes/No).
+-   **Feature Utility**: "Which feature do you use most?" (Goal: "Quick Add" and "Budget View").
+
+## 3. Evaluation Schedule
+-   **Post-Sprint 2**: Usability Test with "Spender" persona.
+-   **Post-Launch (Week 10)**: Family retro to review adoption and satisfaction.

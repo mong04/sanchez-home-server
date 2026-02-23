@@ -1,6 +1,6 @@
 import type * as Party from "partykit/server";
 import { onConnect } from "y-partykit";
-import { signToken, verifyToken, validateInviteCode } from "./auth";
+import { signToken, verifyToken } from "./auth";
 import {
     generatePasskeyRegistrationOptions,
     verifyPasskeyRegistration,
@@ -107,61 +107,7 @@ export default class Server implements Party.Server {
         try {
             const url = new URL(req.url);
 
-            // --- AUTH: LOGIN ---
-            if (req.method === "POST" && url.pathname.endsWith("/auth/login")) {
-                // Rate limiting: Track failed attempts by IP
-                const clientIP = req.headers.get('CF-Connecting-IP')
-                    || req.headers.get('X-Forwarded-For')?.split(',')[0]
-                    || 'unknown';
-                const rateLimitKey = `ratelimit:${clientIP}`;
-                const rateData = await this.room.storage.get<{ count: number; resetAt: number }>(rateLimitKey);
 
-                const now = Date.now();
-                const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
-                const MAX_ATTEMPTS = 5;
-
-                // Check if currently rate limited
-                if (rateData && rateData.count >= MAX_ATTEMPTS && now < rateData.resetAt) {
-                    const minutesLeft = Math.ceil((rateData.resetAt - now) / 60000);
-                    console.log(`🚫 [RateLimit] IP ${clientIP} blocked, ${minutesLeft}m remaining`);
-                    return Response.json(
-                        { error: `Too many attempts. Try again in ${minutesLeft} minutes.` },
-                        { status: 429, headers: CORS_HEADERS }
-                    );
-                }
-
-                const body = await req.json() as { code: string };
-                const storedInvites = await this.room.storage.get<string[]>("invites") || [];
-
-                if (await validateInviteCode(body.code, storedInvites)) {
-                    // Success - clear rate limit for this IP
-                    await this.room.storage.delete(rateLimitKey);
-
-                    // Consume the invite code (single-use)
-                    const codeIndex = storedInvites.indexOf(body.code);
-                    if (codeIndex > -1) {
-                        storedInvites.splice(codeIndex, 1);
-                        await this.room.storage.put("invites", storedInvites);
-                        console.log('🔐 [Auth] Invite code consumed:', body.code.substring(0, 4) + '...');
-                    }
-
-                    // Issue a temporary token for profile selection
-                    const token = await signToken({ sub: "pending", name: "Pending", role: "kid" }, this.room.env.PARTYKIT_SECRET as string);
-                    return Response.json({ token }, { headers: CORS_HEADERS });
-                }
-
-                // Failed attempt - increment rate limit counter
-                const newCount = (rateData && now < rateData.resetAt) ? rateData.count + 1 : 1;
-                await this.room.storage.put(rateLimitKey, {
-                    count: newCount,
-                    resetAt: (rateData && now < rateData.resetAt) ? rateData.resetAt : now + RATE_LIMIT_WINDOW
-                });
-
-                const attemptsLeft = MAX_ATTEMPTS - newCount;
-                console.log(`⚠️ [RateLimit] Failed attempt from ${clientIP}, ${attemptsLeft} attempts left`);
-
-                return Response.json({ error: "Invalid code" }, { status: 401, headers: CORS_HEADERS });
-            }
 
             // --- ADMIN: EMERGENCY RECOVERY (No Auth Required - uses separate secret) ---
             if (url.pathname.endsWith("/admin/recover") && req.method === "POST") {
@@ -234,6 +180,12 @@ export default class Server implements Party.Server {
             const authHeader = req.headers.get("Authorization");
             const token = authHeader?.split(" ")[1];
             const POCKETBASE_URL = (this.room.env.POCKETBASE_URL as string) || "http://127.0.0.1:8090";
+
+            // Log environment config (masked/safe) to debug connection issues
+            if (req.method === 'GET' && url.pathname.endsWith("/family/profiles")) {
+                console.log(`🔌 [PartyKit] Configured PB URL: ${POCKETBASE_URL}`);
+            }
+
             const payload = token ? await verifyToken(token, POCKETBASE_URL, this.room.env.PARTYKIT_SECRET as string) : null;
 
             if (!payload) {
@@ -349,22 +301,7 @@ export default class Server implements Party.Server {
                 }
             }
 
-            // --- API: ADMIN ---
-            if (url.pathname.endsWith("/admin/invite") && req.method === "POST") {
-                // Allow both admin and parent roles to generate invites
-                if (payload.role !== "admin" && payload.role !== "parent") {
-                    return Response.json({ error: "Forbidden" }, { status: 403, headers: CORS_HEADERS });
-                }
 
-                // Generate cryptographically strong 16-char code
-                const newCode = crypto.randomUUID().replace(/-/g, '').substring(0, 16).toUpperCase();
-                const invites = await this.room.storage.get<string[]>("invites") || [];
-                invites.push(newCode);
-                await this.room.storage.put("invites", invites);
-                console.log('🔐 [Admin] New invite code generated');
-
-                return Response.json({ code: newCode }, { headers: CORS_HEADERS });
-            }
 
             // --- PASSKEY: REGISTRATION OPTIONS ---
             if (url.pathname.endsWith("/passkey/register/options") && req.method === "POST") {
@@ -412,121 +349,7 @@ export default class Server implements Party.Server {
                 return Response.json({ success: true }, { headers: CORS_HEADERS });
             }
 
-            // --- ADMIN: MAGIC LINK GENERATOR ---
-            if (url.pathname.endsWith("/admin/magic-link") && req.method === "POST") {
-                // Verify admin/parent role
-                if (payload?.role !== "admin" && payload?.role !== "parent") {
-                    return Response.json({ error: "Forbidden" }, { status: 403, headers: CORS_HEADERS });
-                }
 
-                const body = await req.json() as { userId: string; email: string; type: 'setup' | 'reset' };
-
-                // Generate signed token for setup
-                // 24 hour expiry for setup links
-                // We use 'kid' role by default for the setup token, but meaningful role is in 'sub'
-                const setupToken = await signToken({
-                    sub: body.userId,
-                    name: body.email,
-                    role: 'kid',
-                }, this.room.env.PARTYKIT_SECRET as string);
-
-                const baseUrl = origin || "https://sanchez-family-os.vercel.app";
-                const magicLink = `${baseUrl}/?setup_token=${setupToken}`;
-
-                console.log(`🔗 [Admin] Magic Link generated for ${body.email}`);
-                return Response.json({ url: magicLink, token: setupToken }, { headers: CORS_HEADERS });
-            }
-
-            // --- AUTH: SETUP PASSWORD (Public, requires setup_token) ---
-            if (url.pathname.endsWith("/auth/setup-password") && req.method === "POST") {
-                const body = await req.json() as { token: string; password: string; passwordConfirm: string };
-
-                // Verify the setup token
-                // We import verifyLocalToken? No, verifyToken handles it.
-                // verifyToken tries local first.
-                // But we need to be sure it's a LOCAL token (signed by us), not a PB token.
-                // PB tokens won't work here because we need to Extract 'sub' (userId) to find WHAT to update.
-                // PB token 'sub' is userId too.
-                // But 'setup' token logic implies we trust the token to allow password reset.
-                // A normal PB token (if illegally obtained) allows resetting password?
-                // Users can reset their own password.
-                // But check if 'token' is valid.
-                const POCKETBASE_URL_SETUP = (this.room.env.POCKETBASE_URL as string) || "http://127.0.0.1:8090";
-                const payload = await verifyToken(body.token, POCKETBASE_URL_SETUP, this.room.env.PARTYKIT_SECRET as string);
-
-                if (!payload) {
-                    return Response.json({ error: "Invalid or expired link" }, { status: 401, headers: CORS_HEADERS });
-                }
-
-                if (body.password !== body.passwordConfirm) {
-                    return Response.json({ error: "Passwords do not match" }, { status: 400, headers: CORS_HEADERS });
-                }
-
-                try {
-                    // Perform PB Update as Admin
-                    // We typically need POCKETBASE_ADMIN_EMAIL/PASSWORD in env
-                    // For simplified setup, we'll try to use a PartyKit-specific Admin Client
-                    // OR usage of 'superuser' collection if we had one.
-                    // Since this is a specialized task, we assume credentials are in env.
-
-                    // NOTE: This requires 'pocketbase' package and fetching.
-                    // We can just use fetch to PB API.
-
-                    // 1. Authenticate as Admin
-                    const adminAuthUrl = `${this.room.env.POCKETBASE_URL || "http://127.0.0.1:8090"}/api/admins/auth-with-password`;
-                    const adminEmail = this.room.env.POCKETBASE_ADMIN_EMAIL as string;
-                    const adminPass = this.room.env.POCKETBASE_ADMIN_PASSWORD as string;
-
-                    if (!adminEmail || !adminPass) {
-                        console.error("❌ [Setup] Missing PB Admin credentials in PartyKit env");
-                        return Response.json({ error: "Server configuration error" }, { status: 500, headers: CORS_HEADERS });
-                    }
-
-                    const adminRes = await fetch(adminAuthUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ identity: adminEmail, password: adminPass })
-                    });
-
-                    if (!adminRes.ok) {
-                        console.error("❌ [Setup] PB Admin auth failed");
-                        return Response.json({ error: "Server authentication failed" }, { status: 500, headers: CORS_HEADERS });
-                    }
-
-                    const adminData = await adminRes.json() as { token: string };
-                    const adminToken = adminData.token;
-
-                    // 2. Update User Password
-                    const userId = payload.sub;
-                    const updateUrl = `${this.room.env.POCKETBASE_URL || "http://127.0.0.1:8090"}/api/collections/users/records/${userId}`;
-
-                    const updateRes = await fetch(updateUrl, {
-                        method: 'PATCH',
-                        headers: {
-                            'Authorization': `Bearer ${adminToken}`,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            password: body.password,
-                            passwordConfirm: body.passwordConfirm,
-                            emailVisibility: true // Ensure email is visible so they can login easy
-                        })
-                    });
-
-                    if (!updateRes.ok) {
-                        const err = await updateRes.json();
-                        console.error("❌ [Setup] Failed to update password", err);
-                        return Response.json({ error: "Failed to set password" }, { status: 500, headers: CORS_HEADERS });
-                    }
-
-                    console.log(`✅ [Setup] Password set for user ${userId}`);
-                    return Response.json({ success: true }, { headers: CORS_HEADERS });
-
-                } catch (error) {
-                    console.error("❌ [Setup] Unexpected error", error);
-                    return Response.json({ error: "Internal Error" }, { status: 500, headers: CORS_HEADERS });
-                }
-            }
 
             return new Response("Not Found", { status: 404, headers: CORS_HEADERS });
 

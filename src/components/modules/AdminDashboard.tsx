@@ -1,56 +1,43 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Copy, Check, ShieldAlert, Lock } from 'lucide-react';
-import { env } from '../../config/env';
+import { useAdminStats } from '../../hooks/use-admin-stats';
+import { useInfinityLog } from '../../hooks/use-infinity-log';
+import { MetricCard } from '../ui/dashboard/MetricCard';
+import { ActivityFeed } from '../ui/dashboard/ActivityFeed';
+import { AddUserDialog } from '../admin/AddUserDialog';
+import { ShieldAlert, Users, CheckSquare, Receipt, Activity, Wifi } from 'lucide-react';
+import { provider } from '../../lib/yjs-provider';
+
 import { UserManagement } from '../admin/UserManagement';
 
 export function AdminDashboard() {
-    const { user, token } = useAuth();
+    const { user, profiles } = useAuth();
+    const navigate = useNavigate();
+    const { onlineUsers, activeChoresCount, totalXP, systemStatus, userCount } = useAdminStats();
+    const { items: logItems } = useInfinityLog();
     const [activeTab, setActiveTab] = useState<'overview' | 'users'>('overview');
-    const [inviteCode, setInviteCode] = useState<string | null>(null);
-    const [copied, setCopied] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+    const [isSyncing, setIsSyncing] = useState(false);
 
-    // Import env for host
-    const PARTYKIT_HOST = env.PARTYKIT_HOST;
-    const PROTOCOL = window.location.protocol === 'https:' ? 'https:' : 'http:';
-    const API_URL = `${PROTOCOL}//${PARTYKIT_HOST}/parties/main/sanchez-family-os-v1`;
-
-    const generateCode = async () => {
-        setIsLoading(true);
-        try {
-            const response = await fetch(`${API_URL}/admin/invite`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-            const data = await response.json();
-            if (data.code) {
-                setInviteCode(data.code);
-            }
-        } catch (error) {
-            console.error("Failed to generate code:", error);
-        } finally {
-            setIsLoading(false);
-        }
+    const handleForceSync = () => {
+        setIsSyncing(true);
+        // Force reconnection logic
+        provider.disconnect();
+        setTimeout(() => {
+            provider.connect();
+            setTimeout(() => setIsSyncing(false), 1000); // Visual feedback delay
+        }, 500);
     };
 
-    const copyToClipboard = () => {
-        if (!inviteCode) return;
-        navigator.clipboard.writeText(inviteCode);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
 
 
     if (user?.role !== 'admin' && user?.role !== 'parent') {
         return (
             <div className="flex h-full items-center justify-center p-8">
                 <div className="text-center space-y-4 max-w-md">
-                    <div className="bg-red-500/10 p-4 rounded-full inline-flex">
-                        <ShieldAlert className="w-12 h-12 text-red-500" />
+                    <div className="bg-destructive/10 p-4 rounded-full inline-flex">
+                        <ShieldAlert className="w-12 h-12 text-destructive" />
                     </div>
                     <h2 className="text-2xl font-bold">Access Restricted</h2>
                     <p className="text-muted-foreground">
@@ -112,67 +99,128 @@ export function AdminDashboard() {
             </div>
 
             {activeTab === 'overview' ? (
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 animate-in fade-in slide-in-from-left-4 duration-300">
-                    {/* Invite Code Card */}
-                    <div className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4">
-                        <div className="flex items-start justify-between">
-                            <div className="space-y-1">
-                                <h3 className="font-semibold flex items-center gap-2">
-                                    <Lock className="w-4 h-4 text-primary" />
-                                    Invite System
-                                </h3>
-                                <p className="text-sm text-muted-foreground">
-                                    Generate a one-time code for new devices.
-                                </p>
-                            </div>
+                /* System Overview Grid */
+                <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                        <MetricCard
+                            title="Active Users"
+                            value={`${onlineUsers} / ${userCount}`}
+                            subtext="Currently online"
+                            icon={Users}
+                            variant="neutral"
+                        />
+                        <MetricCard
+                            title="System Health"
+                            value={systemStatus === 'connected' ? 'Normal' : 'Offline'}
+                            subtext="PartyKit Connection"
+                            icon={Wifi}
+                            variant={systemStatus === 'connected' ? 'success' : 'destructive'}
+                        />
+                        <MetricCard
+                            title="Pending Chores"
+                            value={activeChoresCount}
+                            subtext="Total configured"
+                            icon={CheckSquare}
+                            variant="warning"
+                        />
+                        <MetricCard
+                            title="Family XP"
+                            value={totalXP.toLocaleString()}
+                            subtext="Total earned"
+                            icon={Activity}
+                            variant="info"
+                        />
+                    </div>
+
+                    <div className="grid gap-6 md:grid-cols-7">
+                        {/* Feed */}
+                        <div className="md:col-span-4 lg:col-span-5 space-y-4">
+                            <ActivityFeed
+                                items={logItems.slice(0, 20).map(item => ({
+                                    id: item.id,
+                                    type: (item.tags?.find(t => ['chore', 'finance', 'system', 'user', 'wellness'].includes(t)) as any) || 'system',
+                                    title: item.content,
+                                    timestamp: item.createdAt,
+                                    description: item.tags?.join(', ')
+                                }))}
+                                users={profiles}
+                                className="bg-card rounded-xl border border-border shadow-sm p-4"
+                            />
                         </div>
 
-                        <div className="space-y-4">
-                            {!inviteCode ? (
-                                <button
-                                    onClick={generateCode}
-                                    disabled={isLoading}
-                                    className="w-full py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors font-medium disabled:opacity-50"
-                                >
-                                    {isLoading ? "Generating..." : "Generate New Code"}
-                                </button>
-                            ) : (
-                                <div className="bg-muted/50 p-4 rounded-lg flex items-center justify-between group relative overflow-hidden animate-in fade-in zoom-in-95">
-                                    <code className="font-mono text-lg font-bold tracking-wider text-primary">
-                                        {inviteCode}
-                                    </code>
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={copyToClipboard}
-                                            className="p-2 hover:bg-background rounded-md transition-colors"
-                                            title="Copy to clipboard"
-                                        >
-                                            {copied ? (
-                                                <Check className="w-5 h-5 text-emerald-500" />
-                                            ) : (
-                                                <Copy className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                                            )}
-                                        </button>
-                                        <button
-                                            onClick={() => setInviteCode(null)}
-                                            className="p-2 hover:bg-background rounded-md transition-colors text-xs text-muted-foreground"
-                                            title="Clear"
-                                        >
-                                            Clear
-                                        </button>
-                                    </div>
+                        {/* Quick Actions */}
+                        <div className="md:col-span-3 lg:col-span-2 space-y-4">
+                            <div className="bg-card rounded-xl border border-border shadow-sm p-4 h-full">
+                                <h3 className="font-semibold mb-4">Quick Actions</h3>
+                                <div className="grid grid-cols-2 gap-2 md:gap-3">
+                                    <button
+                                        onClick={() => setIsAddUserOpen(true)}
+                                        className="p-3 md:p-4 text-xs md:text-sm font-medium bg-muted/40 hover:bg-muted rounded-xl border border-border/50 transition-colors flex flex-col items-center gap-2 md:gap-3 text-center focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden min-h-[72px] md:min-h-[88px] justify-center"
+                                    >
+                                        <div className="p-2 rounded-full bg-primary/10 text-primary">
+                                            <Users className="w-5 h-5" />
+                                        </div>
+                                        Add User
+                                    </button>
+                                    <button
+                                        onClick={handleForceSync}
+                                        disabled={isSyncing}
+                                        className="p-3 md:p-4 text-xs md:text-sm font-medium bg-muted/40 hover:bg-muted rounded-xl border border-border/50 transition-colors flex flex-col items-center gap-2 md:gap-3 text-center focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden min-h-[72px] md:min-h-[88px] justify-center disabled:opacity-50"
+                                    >
+                                        <div className={`p-2 rounded-full bg-destructive/10 text-destructive ${isSyncing ? 'animate-spin' : ''}`}>
+                                            {isSyncing ? <Activity className="w-5 h-5" /> : <ShieldAlert className="w-5 h-5" />}
+                                        </div>
+                                        {isSyncing ? 'Syncing...' : 'Force Sync'}
+                                    </button>
+                                    <button
+                                        onClick={() => alert("Bill Scanning coming soon!")}
+                                        className="p-3 md:p-4 text-xs md:text-sm font-medium bg-muted/40 hover:bg-muted rounded-xl border border-border/50 transition-colors flex flex-col items-center gap-2 md:gap-3 text-center focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden min-h-[72px] md:min-h-[88px] justify-center"
+                                    >
+                                        <div className="p-2 rounded-full bg-warning/10 text-warning">
+                                            <Receipt className="w-5 h-5" />
+                                        </div>
+                                        Scan Bill
+                                    </button>
+                                    <button
+                                        onClick={() => navigate('/chores')}
+                                        className="p-3 md:p-4 text-xs md:text-sm font-medium bg-muted/40 hover:bg-muted rounded-xl border border-border/50 transition-colors flex flex-col items-center gap-2 md:gap-3 text-center focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden min-h-[72px] md:min-h-[88px] justify-center"
+                                    >
+                                        <div className="p-2 rounded-full bg-success/10 text-success">
+                                            <CheckSquare className="w-5 h-5" />
+                                        </div>
+                                        Add Chore
+                                    </button>
                                 </div>
-                            )}
+                            </div>
                         </div>
                     </div>
-                    {/* Security Section (Passkeys) */}
-                    {/* Removed for cleanup - can be re-added later */}
                 </div>
             ) : (
                 <div className="animate-in fade-in slide-in-from-right-4 duration-300">
                     <UserManagement />
                 </div>
             )}
+
+            <AddUserDialog
+                isOpen={isAddUserOpen}
+                onClose={() => setIsAddUserOpen(false)}
+                onUserAdded={() => {
+                    // Optional: refresh logic if needed, but Yjs/PartyKit is real-time
+                }}
+            />
+
+            {/* Technical Health Footer */}
+            <footer className="pt-6 border-t border-border/40 flex flex-col sm:flex-row flex-wrap items-center justify-between gap-2 sm:gap-4 text-xs text-muted-foreground">
+                <div className="flex items-center gap-4">
+                    <span>Version 1.0.0-beta</span>
+                    <span className="hidden sm:inline">•</span>
+                    <span>Storage: Local (IndexedDB) + Cloud (PartyKit)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${systemStatus === 'connected' ? 'bg-success' : 'bg-destructive'} animate-pulse`} />
+                    {systemStatus === 'connected' ? 'System Operational' : 'Connection Lost'}
+                </div>
+            </footer>
         </div>
     );
 }

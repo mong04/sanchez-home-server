@@ -1,0 +1,24 @@
+# Finance Module Rules
+
+## Architecture
+- Single household only.
+- True zero-based budgeting: every month starts with budgeted = 0. Positive rollover only.
+- Transactions = single source of truth (signed amounts).
+- Yjs + PartyKit ONLY for the monthly budget grid (live collaborative editing).
+- Everything else uses PocketBase realtime + TanStack Query.
+- All balances calculated live from transactions + initialBalance.
+
+## Key Behaviors
+- New month → show NewMonthModal with 3 choices (Start Fresh, Copy Last, 3-Month Average).
+- Budget Grid must show real-time "Partner is viewing live" when peerCount > 1.
+- FAB is a delightful numpad → category → account flow.
+- Dashboard must feel emotional (huge To Be Budgeted card, net worth, mini accounts, recent activity).
+- Polish phase required: animations, empty states, confetti, micro-interactions.
+
+## Naming & Structure
+- All finance files go in src/components/modules/finance/
+- Hooks in src/hooks/finance/
+- Utils in src/lib/finance/
+- Store in src/stores/useFinanceStore.ts
+
+Follow the exact file manifest in FINANCE_MODULE_SPEC.md.

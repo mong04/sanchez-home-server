@@ -43,3 +43,8 @@ debug-*.png
 
 # Test Output
 test_output*.txt
+*.txt
+cloudflared.exe
+
+# PocketBase
+backend/pb_data/

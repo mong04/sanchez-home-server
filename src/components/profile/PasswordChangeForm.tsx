@@ -55,8 +55,8 @@ export function PasswordChangeForm() {
 
     const getStrengthLabel = (s: number) => {
         if (s <= 1) return { label: 'Weak', color: 'bg-destructive' };
-        if (s <= 3) return { label: 'Good', color: 'bg-yellow-500' };
-        return { label: 'Strong (Passphrase)', color: 'bg-green-500' };
+        if (s <= 3) return { label: 'Good', color: 'bg-warning' };
+        return { label: 'Strong (Passphrase)', color: 'bg-success' };
     };
 
     const strengthInfo = getStrengthLabel(strength);
@@ -207,7 +207,7 @@ export function PasswordChangeForm() {
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
                             exit={{ opacity: 0, height: 0 }}
-                            className="bg-green-500/15 text-green-600 dark:text-green-400 p-3 rounded-md text-sm flex items-start gap-2"
+                            className="bg-success/15 text-success p-3 rounded-md text-sm flex items-start gap-2"
                         >
                             <Check className="w-4 h-4 mt-0.5 shrink-0" />
                             <span>Password updated successfully!</span>

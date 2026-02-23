@@ -103,17 +103,18 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({ currentAvatar, onSav
             />
 
             {/* Modal Card */}
-            <div className="relative bg-card/90 backdrop-blur-xl w-full sm:max-w-lg sm:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] sm:max-h-[90vh] animate-in slide-in-from-bottom-10 sm:zoom-in-95 duration-300 border border-border">
+            <div className="relative bg-card/90 backdrop-blur-xl w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] sm:max-h-[90vh] animate-in slide-in-from-bottom-10 sm:zoom-in-95 duration-300 border border-border">
 
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 pb-2">
-                    <h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
+                    <h2 className="text-xl md:text-2xl font-bold text-foreground">
                         Customize Avatar
                     </h2>
                     <button
                         onClick={onClose}
                         className="p-2 rounded-full hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
                         disabled={isSaving}
+                        aria-label="Close dialog"
                     >
                         <span className="text-xl leading-none">✕</span>
                     </button>
@@ -125,7 +126,7 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({ currentAvatar, onSav
                     {/* Preview Section */}
                     <div className="flex flex-col items-center">
                         <div className="relative group">
-                            <div className="w-32 h-32 rounded-full bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-950/30 dark:to-violet-950/30 flex items-center justify-center overflow-hidden border-4 border-background shadow-xl ring-4 ring-primary/20 transition-transform duration-300 group-hover:scale-105">
+                            <div className="w-32 h-32 rounded-full bg-gradient-to-br from-primary/10 to-accent/10 dark:from-primary/5 dark:to-accent/5 flex items-center justify-center overflow-hidden border-4 border-background shadow-xl ring-4 ring-primary/20 transition-transform duration-300 group-hover:scale-105">
                                 {selectedType === 'preset' ? (
                                     <span className="text-6xl animate-bounce-subtle filter drop-shadow-lg">{selectedValue}</span>
                                 ) : (
@@ -251,7 +252,7 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({ currentAvatar, onSav
                     <button
                         onClick={handleSave}
                         disabled={isSaving || isCompressing || (selectedType === 'upload' && !uploadPreview)}
-                        className="w-full py-3.5 px-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-bold text-lg shadow-lg shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                        className="w-full py-3.5 px-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-bold text-sm md:text-base shadow-lg shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                     >
                         {isSaving ? (
                             <>

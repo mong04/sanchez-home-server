@@ -74,6 +74,8 @@ export async function verifyLocalToken(token: string, secret?: string): Promise<
  */
 export async function verifyPocketBaseToken(token: string, pbUrl?: string): Promise<JWTPayload | null> {
     const url = pbUrl || "http://127.0.0.1:8090";
+    console.log(`🔍 [Auth] Verifying PB token against: ${url}/api/collections/users/auth-refresh`);
+
     try {
         const response = await fetch(`${url}/api/collections/users/auth-refresh`, {
             method: 'POST',
@@ -83,7 +85,15 @@ export async function verifyPocketBaseToken(token: string, pbUrl?: string): Prom
             }
         });
 
-        if (!response.ok) return null;
+        if (!response.ok) {
+            console.error(`❌ [Auth] PB Token invalid. Status: ${response.status} ${response.statusText}`);
+            try {
+                const errBody = await response.text();
+                console.error(`❌ [Auth] PB Error Body: ${errBody}`);
+            } catch (ignored) { }
+
+            return null;
+        }
 
         const data = await response.json() as { record: { id: string, email: string, name: string, partykit_id?: string } };
         const user = data.record;
@@ -95,9 +105,9 @@ export async function verifyPocketBaseToken(token: string, pbUrl?: string): Prom
             partykit_id: user.partykit_id
         };
     } catch (error) {
-        console.error("PB token verification failed:", error);
+        console.error(`❌ [Auth] PB Connection Failed to ${url}:`, error);
         if (error instanceof Error) {
-            console.error("Error details:", error.message, error.stack);
+            console.error("Error details:", error.message);
             if ('cause' in error) console.error("Caused by:", error.cause);
         }
         return null;
@@ -118,9 +128,4 @@ export async function verifyToken(token: string, pbUrl?: string, secret?: string
     return await verifyPocketBaseToken(token, pbUrl);
 }
 
-/**
- * Validates an invite code.
- */
-export async function validateInviteCode(code: string, validCodes: string[] = []): Promise<boolean> {
-    return validCodes.includes(code);
-}
+

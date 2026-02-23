@@ -52,6 +52,7 @@ export interface CalendarEvent {
     start: number;
     end: number;
     isLocked: boolean;
+    isCompleted?: boolean; // For reminders/chores
     type: CalendarEventType;
     description?: string;
     location?: string;

@@ -2,6 +2,7 @@ import * as Y from 'yjs';
 import { IndexeddbPersistence } from 'y-indexeddb';
 import YPartyKitProvider from "y-partykit/provider";
 import { SYNC_CONFIG } from '../config/sync';
+import { pb } from './pocketbase';
 import type { InfinityLogItem, Chore, Bill, ShoppingItem, CalendarEvent, WellnessEntry, Message, User } from '../types/schema';
 
 // 1. Create the shared document
@@ -29,6 +30,7 @@ function createProvider(token: string): YPartyKitProvider {
         SYNC_CONFIG.ROOM_NAME,
         doc,
         {
+            connect: false,
             params: { token }
         }
     );
@@ -45,12 +47,16 @@ function createProvider(token: string): YPartyKitProvider {
         console.log('✅ [Yjs] PartyKit synced with server');
     });
 
+    if (token) {
+        newProvider.connect();
+    }
+
     return newProvider;
 }
 
 // Initialize provider with stored token (if any)
 if (typeof window !== 'undefined') {
-    const storedToken = localStorage.getItem('sfos_token') || '';
+    const storedToken = pb.authStore.token || '';
     console.log('🔌 [Yjs] Initial provider config:', {
         host: SYNC_CONFIG.PARTYKIT_HOST,
         room: SYNC_CONFIG.ROOM_NAME,

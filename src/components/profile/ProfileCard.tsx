@@ -30,16 +30,16 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ userId }) => {
     };
 
     return (
-        <div className="relative overflow-hidden bg-card/90 backdrop-blur-xl rounded-3xl p-6 sm:p-8 shadow-2xl border border-border">
+        <div className="relative overflow-hidden bg-card/90 backdrop-blur-xl rounded-2xl p-4 sm:p-6 md:p-8 shadow-2xl border border-border">
             {/* Background elements */}
-            <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-primary/20 rounded-full blur-3xl pointer-events-none"></div>
-            <div className="absolute bottom-0 left-0 -mb-16 -ml-16 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-primary/15 rounded-full blur-3xl pointer-events-none"></div>
+            <div className="absolute bottom-0 left-0 -mb-16 -ml-16 w-64 h-64 bg-accent/10 rounded-full blur-3xl pointer-events-none"></div>
 
-            <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8">
+            <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
                 {/* Avatar with Level Ring */}
                 <div className="relative flex-shrink-0 cursor-pointer group" onClick={() => setIsEditingAvatar(true)}>
                     {/* Progress Ring SVG */}
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[160px] h-[160px] rotate-[-90deg]">
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[104px] h-[104px] sm:w-[144px] sm:h-[144px] md:w-[160px] md:h-[160px] rotate-[-90deg]">
                         <svg className="w-full h-full text-primary" viewBox="0 0 128 128">
                             <circle cx="64" cy="64" r={60} fill="none" stroke="currentColor" strokeWidth="4" className="opacity-10" />
                             <circle cx="64" cy="64" r={60} fill="none" stroke="currentColor" strokeWidth="4"
@@ -51,11 +51,11 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ userId }) => {
                         </svg>
                     </div>
 
-                    <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-background shadow-xl bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-950/30 dark:to-violet-950/30 flex items-center justify-center relative z-10 group-hover:scale-105 transition-transform duration-300">
+                    <div className="w-20 h-20 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-full overflow-hidden border-4 border-background shadow-xl bg-gradient-to-br from-primary/10 to-accent/10 dark:from-primary/5 dark:to-accent/5 flex items-center justify-center relative z-10 group-hover:scale-105 transition-transform duration-300">
                         {user.avatar?.type === 'upload' ? (
                             <img src={user.avatar.value} alt={user.name} className="w-full h-full object-cover" />
                         ) : (
-                            <span className="text-6xl filter drop-shadow-md animate-bounce-subtle">{user.avatar?.value || '👤'}</span>
+                            <span className="text-4xl sm:text-5xl md:text-6xl filter drop-shadow-md animate-bounce-subtle">{user.avatar?.value || '👤'}</span>
                         )}
 
                         {/* Edit Overlay - Desktop Hover */}
@@ -71,15 +71,15 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ userId }) => {
 
                     {/* Level Pill Badge */}
                     <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 z-20">
-                        <div className="bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg border-2 border-background whitespace-nowrap">
+                        <div className="bg-primary text-primary-foreground text-xs font-bold px-3 py-1 rounded-full shadow-lg border-2 border-background whitespace-nowrap">
                             LEVEL {user.level}
                         </div>
                     </div>
                 </div>
 
                 {/* Identity & Vibe */}
-                <div className="flex-1 text-center sm:text-left space-y-2 max-w-full">
-                    <h1 className="text-3xl sm:text-4xl font-black text-foreground tracking-tight">
+                <div className="flex-1 text-center sm:text-left space-y-2 min-w-0 max-w-full">
+                    <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-foreground tracking-tight truncate">
                         {user.name}
                     </h1>
 
@@ -119,14 +119,14 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ userId }) => {
                     </div>
 
                     {/* Quick Stats Row (Optional, if we want them in header) */}
-                    <div className="pt-4 flex items-center justify-center sm:justify-start gap-6">
+                    <div className="pt-3 flex items-center justify-center sm:justify-start gap-4 md:gap-6">
                         <div className="text-center">
-                            <div className="text-2xl font-bold text-foreground">{user.streaks?.current || 0} 🔥</div>
+                            <div className="text-lg md:text-xl font-bold text-foreground">{user.streaks?.current || 0} 🔥</div>
                             <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Day Streak</div>
                         </div>
                         <div className="w-px h-8 bg-border"></div>
                         <div className="text-center">
-                            <div className="text-2xl font-bold text-foreground">{user.badges?.length || 0} 🎖️</div>
+                            <div className="text-lg md:text-xl font-bold text-foreground">{user.badges?.length || 0} 🎖️</div>
                             <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Badges</div>
                         </div>
                     </div>

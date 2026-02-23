@@ -13,7 +13,7 @@ interface AuthContextType {
     user: User | null;
     token: string | null;
     profiles: User[];
-    login: (code: string) => Promise<boolean>; // Deprecated but kept for type compat temporarily
+
     loginWithPocketBase: (email: string, pass: string) => Promise<boolean>;
     logout: () => void;
     selectProfile: (profileId: string) => Promise<void>; // Will be used for identity linking later
@@ -144,11 +144,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    // DEPRECATED: Legacy Invite Code Login
-    const login = async (code: string) => {
-        console.warn("⚠️ Legacy Invite Code login is deprecated. Use loginWithPocketBase.", code);
-        return false;
-    };
+
 
     const loginWithPocketBase = async (email: string, pass: string) => {
         try {
@@ -323,7 +319,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return (
         <AuthContext.Provider value={{
             isAuthenticated, user, token, profiles,
-            login, loginWithPocketBase, logout,
+            loginWithPocketBase, logout,
             selectProfile, createProfile, updateProfile, fetchProfiles,
             updatePassword
         }}>

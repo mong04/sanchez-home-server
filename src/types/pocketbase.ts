@@ -1,16 +1,14 @@
-/**
-* This file was @generated using pocketbase-typegen
-*/
+// src/types/pocketbase.ts — Finance Module PocketBase Schema Types
 
 export const Collections = {
     Users: "users",
     Accounts: "accounts",
-    Envelopes: "envelopes",
     Transactions: "transactions",
+    Categories: "categories",
+    BudgetMonths: "budget_months",
+    RecurringBills: "recurring_bills",
 } as const;
-export type Collections = typeof Collections[keyof typeof Collections];
 
-// Universal records
 export interface BaseRecord {
     id: string;
     created: string;
@@ -19,73 +17,71 @@ export interface BaseRecord {
     collectionName: string;
 }
 
-// User Record
-export const UserRoleOptions = {
-    admin: "admin",
-    partner: "partner",
-    child: "child",
-} as const;
-export type UserRoleOptions = typeof UserRoleOptions[keyof typeof UserRoleOptions];
-
-export interface UserRecord extends BaseRecord {
-    name?: string;
-    avatar?: string;
-    role: UserRoleOptions;
-}
-
-// Account Record
-export const AccountTypeOptions = {
-    checking: "checking",
-    savings: "savings",
-    credit: "credit",
-    cash: "cash",
-} as const;
-export type AccountTypeOptions = typeof AccountTypeOptions[keyof typeof AccountTypeOptions];
-
 export interface AccountRecord extends BaseRecord {
     name: string;
-    type: AccountTypeOptions;
-    balance?: number;
-    owner: string; // Relation to users
-    is_joint?: boolean;
-}
-
-// Envelope Record
-export const EnvelopeVisibilityOptions = {
-    public: "public",
-    private: "private",
-    hidden: "hidden",
-} as const;
-export type EnvelopeVisibilityOptions = typeof EnvelopeVisibilityOptions[keyof typeof EnvelopeVisibilityOptions];
-
-export interface EnvelopeRecord extends BaseRecord {
-    name: string;
-    budget_limit?: number;
-    current_balance?: number;
-    owner: string; // Relation to users
-    visibility: EnvelopeVisibilityOptions;
+    owner: string; // User ID
+    type: "checking" | "savings" | "credit_card" | "loan" | "investment" | "other";
+    initialBalance: number;
+    initialBalanceDate: string;
+    currency: string;
     icon?: string;
+    notes?: string;
 }
-
-// Transaction Record
-export const TransactionStatusOptions = {
-    cleared: "cleared",
-    pending: "pending",
-} as const;
-export type TransactionStatusOptions = typeof TransactionStatusOptions[keyof typeof TransactionStatusOptions];
 
 export interface TransactionRecord extends BaseRecord {
-    payee: string;
-    amount: number;
     date: string;
-    envelope: string; // Relation to envelopes
-    account: string; // Relation to accounts
+    amount: number; // + = money IN to account, - = money OUT
+    payee: string;
+    category: string; // relation ID to categories
+    account: string; // relation ID to accounts
     notes?: string;
-    status: TransactionStatusOptions;
+    tags?: string[];
+    receipt?: string;
+    cleared: boolean;
+    type: "normal" | "transfer" | "adjustment" | "starting_balance";
+    transferGroupId?: string;
+    splitGroupId?: string;
+    createdBy: string;
+    // Expanded relations (populated when using expand param)
+    expand?: {
+        account?: AccountRecord;
+        category?: CategoryRecord;
+    };
 }
 
-// Response Types (for use in API calls)
-export type UsersResponse = UserRecord
-export type AccountsResponse = AccountRecord
-export type EnvelopesResponse = EnvelopeRecord
-export type TransactionsResponse = TransactionRecord
+export interface CategoryRecord extends BaseRecord {
+    name: string;
+    owner: string; // User ID
+    parent?: string;
+    type: "income" | "expense";
+    color: string;
+    icon?: string;
+    isSystem: boolean;
+    // --- Recurring Fields (Phase 1) ---
+    isRecurring?: boolean;
+    amount?: number; // Target goal amount
+    frequency?: "monthly" | "quarterly" | "yearly";
+    dueDay?: number; // 1-31
+    startDate?: string;
+    notes?: string;
+}
+
+export interface BudgetMonthRecord extends BaseRecord {
+    month: string; // "2026-03"
+    owner: string; // User ID
+    allocations: Record<string, number>; // categoryId -> budgeted amount
+    income: number;
+    rollover: number;
+    notes?: string;
+}
+
+export interface RecurringBillRecord extends BaseRecord {
+    name: string;
+    amount: number;
+    frequency: "weekly" | "biweekly" | "monthly" | "quarterly" | "yearly";
+    nextDue: string;
+    category: string;
+    account: string;
+    autoPay: boolean;
+    notes?: string;
+}

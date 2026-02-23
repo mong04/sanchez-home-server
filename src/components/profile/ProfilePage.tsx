@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useGamification } from '../../hooks/use-gamification';
 import { useAuth } from '../../context/AuthContext';
 import { ProfileCard } from './ProfileCard';
@@ -17,32 +17,257 @@ const BADGES_CONFIG: Record<string, { name: string; icon: string; desc: string }
     'night_owl': { name: 'Night Owl', icon: '🦉', desc: 'Completed a task after 10 PM!' },
 };
 
-const Heatmap: React.FC<{ activityLog: Record<string, number> }> = ({ activityLog }) => {
-    // Generate last 365 days
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const DAY_LABELS_SHORT = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const DAY_LABELS_FULL = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function getMotivation(recentActive: number): { text: string; emoji: string } {
+    if (recentActive >= 6) return { text: `Active ${recentActive} of the last 7 days — on fire!`, emoji: '🔥' };
+    if (recentActive >= 4) return { text: `${recentActive} days this week — great momentum!`, emoji: '💪' };
+    if (recentActive >= 2) return { text: `${recentActive} days so far — can you make it ${recentActive + 1}?`, emoji: '🎯' };
+    if (recentActive >= 1) return { text: 'You showed up — that\'s what counts!', emoji: '🌱' };
+    return { text: 'Start a new streak today — every day counts!', emoji: '✨' };
+}
+
+const ActivityHeatmap: React.FC<{ activityLog: Record<string, number> }> = ({ activityLog }) => {
     const today = new Date();
-    const days = [];
-    for (let i = 364; i >= 0; i--) {
+
+    // Responsive week count: 13 mobile, 26 tablet, 52 desktop
+    const [weekCount, setWeekCount] = React.useState(() => {
+        if (typeof window === 'undefined') return 52;
+        if (window.innerWidth >= 1280) return 52;
+        if (window.innerWidth >= 640) return 26;
+        return 13;
+    });
+
+    useEffect(() => {
+        const update = () => {
+            if (window.innerWidth >= 1280) setWeekCount(52);
+            else if (window.innerWidth >= 640) setWeekCount(26);
+            else setWeekCount(13);
+        };
+        window.addEventListener('resize', update);
+        return () => window.removeEventListener('resize', update);
+    }, []);
+
+    // Build weeks of data aligned to weekdays (Sun=0 ... Sat=6)
+    const totalWeeks = weekCount;
+    const cells: { date: string; count: number; day: number; week: number; month: number }[] = [];
+
+    // Find the start: go back ~364 days, then back to the previous Sunday
+    const startDate = new Date(today);
+    startDate.setDate(startDate.getDate() - (totalWeeks * 7 - 1));
+    // Align to Sunday (start of week)
+    const dayOfWeek = startDate.getDay();
+    startDate.setDate(startDate.getDate() - dayOfWeek);
+
+    const monthPositions: { label: string; col: number }[] = [];
+    const monthBoundaryWeeks = new Set<number>(); // weeks where a new month starts
+    let lastMonth = -1;
+
+    for (let i = 0; ; i++) {
+        const d = new Date(startDate);
+        d.setDate(d.getDate() + i);
+        if (d > today) break;
+
+        const dateStr = d.toISOString().split('T')[0];
+        const day = d.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+        const week = Math.floor(i / 7);
+
+        // Track month label positions and boundaries
+        const month = d.getMonth();
+        if (month !== lastMonth) {
+            if (lastMonth !== -1) {
+                monthBoundaryWeeks.add(week); // mark this week as a boundary
+            }
+            // Always place a month label at the first week containing this month
+            if (!monthPositions.find(m => m.label === MONTH_LABELS[month])) {
+                monthPositions.push({ label: MONTH_LABELS[month], col: week });
+            }
+            lastMonth = month;
+        }
+
+        cells.push({ date: dateStr, count: activityLog[dateStr] || 0, day, week, month });
+    }
+
+    const maxWeek = cells.length > 0 ? cells[cells.length - 1].week : 0;
+
+    // Compute stats
+    const activeDays = cells.filter(c => c.count > 0).length;
+    const totalActivities = cells.reduce((sum, c) => sum + c.count, 0);
+
+    // Current streak (consecutive days ending at today, walking backwards)
+    let currentStreak = 0;
+    for (let i = 0; i <= 365; i++) {
         const d = new Date(today);
         d.setDate(d.getDate() - i);
         const dateStr = d.toISOString().split('T')[0];
-        days.push({ date: dateStr, count: activityLog[dateStr] || 0 });
+        if ((activityLog[dateStr] || 0) > 0) {
+            currentStreak++;
+        } else {
+            // Allow today to be 0 (haven't done anything yet today)
+            if (i === 0) continue;
+            break;
+        }
     }
 
+    // Longest streak
+    let longestStreak = 0;
+    let tempStreak = 0;
+    for (const cell of cells) {
+        if (cell.count > 0) {
+            tempStreak++;
+            longestStreak = Math.max(longestStreak, tempStreak);
+        } else {
+            tempStreak = 0;
+        }
+    }
+
+    // Last 7 days active count
+    let recentActive = 0;
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().split('T')[0];
+        if ((activityLog[dateStr] || 0) > 0) recentActive++;
+    }
+    const motivation = getMotivation(recentActive);
+
+    // Color function
+    const getCellColor = (count: number) => {
+        if (count === 0) return 'bg-muted';
+        if (count < 3) return 'bg-success/25';
+        if (count < 6) return 'bg-success/50';
+        return 'bg-success';
+    };
+
     return (
-        <div className="bg-card rounded-2xl p-6 shadow-sm border border-border">
-            <h3 className="font-bold text-foreground mb-4">Activity Heatmap</h3>
-            <div className="flex flex-wrap gap-1">
-                {days.map((day, i) => (
-                    <div
-                        key={i}
-                        title={`${day.date}: ${day.count} activities`}
-                        className={`w-2.5 h-2.5 rounded-sm ${day.count === 0 ? 'bg-muted' :
-                            day.count < 3 ? 'bg-emerald-200 dark:bg-emerald-900' :
-                                day.count < 6 ? 'bg-emerald-400 dark:bg-emerald-700' :
-                                    'bg-emerald-600 dark:bg-emerald-500'
-                            }`}
-                    />
-                ))}
+        <div className="bg-card rounded-2xl p-4 sm:p-5 md:p-6 shadow-sm border border-border">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-3 md:mb-4">
+                <h3 className="text-sm md:text-base font-bold text-foreground flex items-center gap-2">
+                    <span>📊</span> Your Activity
+                </h3>
+                <div className="flex items-center gap-1 text-[10px] md:text-xs text-muted-foreground">
+                    <span>Less</span>
+                    <div className="w-2.5 h-2.5 rounded-sm bg-muted" />
+                    <div className="w-2.5 h-2.5 rounded-sm bg-success/25" />
+                    <div className="w-2.5 h-2.5 rounded-sm bg-success/50" />
+                    <div className="w-2.5 h-2.5 rounded-sm bg-success" />
+                    <span>More</span>
+                </div>
+            </div>
+
+            {/* Stats Row */}
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-0 mb-4 md:mb-5">
+                <div className="flex-1 flex items-center gap-2 sm:justify-center">
+                    <span className="text-lg">📅</span>
+                    <div>
+                        <div className="text-lg md:text-xl font-bold text-foreground leading-tight">{activeDays}</div>
+                        <div className="text-[10px] md:text-xs text-muted-foreground">Active Days</div>
+                    </div>
+                </div>
+                <div className="hidden sm:block w-px bg-border mx-2" />
+                <div className="flex-1 flex items-center gap-2 sm:justify-center">
+                    <span className="text-lg">🔥</span>
+                    <div>
+                        <div className="text-lg md:text-xl font-bold text-foreground leading-tight">{currentStreak}</div>
+                        <div className="text-[10px] md:text-xs text-muted-foreground">Day Streak</div>
+                    </div>
+                </div>
+                <div className="hidden sm:block w-px bg-border mx-2" />
+                <div className="flex-1 flex items-center gap-2 sm:justify-center">
+                    <span className="text-lg">⭐</span>
+                    <div>
+                        <div className="text-lg md:text-xl font-bold text-foreground leading-tight">{longestStreak}</div>
+                        <div className="text-[10px] md:text-xs text-muted-foreground">Best Streak</div>
+                    </div>
+                </div>
+                <div className="hidden sm:block w-px bg-border mx-2" />
+                <div className="flex-1 flex items-center gap-2 sm:justify-center">
+                    <span className="text-lg">⚡</span>
+                    <div>
+                        <div className="text-lg md:text-xl font-bold text-foreground leading-tight">{totalActivities}</div>
+                        <div className="text-[10px] md:text-xs text-muted-foreground">Total Actions</div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Calendar Grid */}
+            <div className="overflow-x-auto pb-1 scrollbar-hide">
+                <div className="w-fit">
+                    {/* Month Labels */}
+                    <div className="flex mb-1">
+                        {/* Spacer matching day label column */}
+                        <div className="shrink-0 mr-[3px] sm:mr-1 flex items-center justify-end" style={{ width: '14px' }}>
+                            <span className="sm:hidden" />
+                        </div>
+                        <div className="hidden sm:flex shrink-0 mr-[3px] sm:mr-1 items-center justify-end" style={{ width: '26px' }} />
+                        {/* Month label cells - one per week column */}
+                        {Array.from({ length: maxWeek + 1 }, (_, weekIdx) => {
+                            const monthEntry = monthPositions.find(m => m.col === weekIdx);
+                            const isBoundary = monthBoundaryWeeks.has(weekIdx) && weekIdx > 0;
+                            return (
+                                <div
+                                    key={weekIdx}
+                                    className={`w-[10px] sm:w-3 shrink-0 mr-[3px] sm:mr-1 last:mr-0${isBoundary ? ' ml-[3px] sm:ml-1.5' : ''}`}
+                                >
+                                    {monthEntry && (
+                                        <span className="text-[8px] sm:text-[10px] md:text-xs text-muted-foreground whitespace-nowrap">
+                                            {monthEntry.label}
+                                        </span>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Grid: day labels + cells */}
+                    <div className="flex">
+                        {/* Day labels column */}
+                        <div className="flex flex-col shrink-0 mr-[3px] sm:mr-1">
+                            {DAY_LABELS_SHORT.map((label, i) => (
+                                <div key={i} className="w-[14px] sm:w-[26px] h-[10px] sm:h-3 mb-[3px] sm:mb-1 last:mb-0 flex items-center justify-end pr-0.5">
+                                    <span className="text-[8px] sm:hidden text-muted-foreground leading-none font-medium">{label}</span>
+                                    <span className="hidden sm:inline text-[9px] md:text-[10px] text-muted-foreground leading-none font-medium">{DAY_LABELS_FULL[i]}</span>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Week columns */}
+                        {Array.from({ length: maxWeek + 1 }, (_, weekIdx) => {
+                            const isBoundary = monthBoundaryWeeks.has(weekIdx) && weekIdx > 0;
+                            // For boundary weeks, find the dominant month (the newer one)
+                            const weekCells = cells.filter(c => c.week === weekIdx);
+                            const dominantMonth = isBoundary && weekCells.length > 0
+                                ? weekCells[weekCells.length - 1].month // last cell = newest month
+                                : -1;
+                            return (
+                                <div key={weekIdx} className={`flex flex-col shrink-0 mr-[3px] sm:mr-1 last:mr-0${isBoundary ? ' ml-[3px] sm:ml-1.5' : ''}`}>
+                                    {Array.from({ length: 7 }, (_, dayIdx) => {
+                                        const cell = cells.find(c => c.week === weekIdx && c.day === dayIdx);
+                                        if (!cell) return <div key={dayIdx} className="w-[10px] h-[10px] sm:w-3 sm:h-3 mb-[3px] sm:mb-1 last:mb-0 rounded-sm" />;
+                                        // Bleed cells from previous month get subtle dimming
+                                        const isBleed = isBoundary && cell.month !== dominantMonth;
+                                        return (
+                                            <div
+                                                key={dayIdx}
+                                                title={`${cell.date}: ${cell.count} activities`}
+                                                className={`w-[10px] h-[10px] sm:w-3 sm:h-3 mb-[3px] sm:mb-1 last:mb-0 rounded-sm ${getCellColor(cell.count)} transition-colors hover:ring-1 hover:ring-foreground/20${isBleed ? ' opacity-40' : ''}`}
+                                            />
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+
+            {/* Motivational Message */}
+            <div className="mt-3 md:mt-4 flex items-center gap-2 text-xs md:text-sm text-muted-foreground bg-muted/50 px-3 py-2 rounded-lg">
+                <span className="text-base">{motivation.emoji}</span>
+                <span>{motivation.text}</span>
             </div>
         </div>
     );
@@ -68,15 +293,19 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ userId }) => {
     if (!user) return <div className="p-12 text-center text-muted-foreground">Loading profile data...</div>;
 
     return (
-        <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8 animate-in fade-in duration-500">
+        <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-4 md:space-y-6 animate-in fade-in duration-500">
 
-            {/* Tabs Navigation */}
-            <div className="flex border-b border-border mb-6">
+            {/* Tabs Navigation — Segmented Control */}
+            <div className="bg-muted p-1 rounded-xl flex w-fit" role="tablist" aria-label="Profile sections">
                 <button
                     onClick={() => setActiveTab('overview')}
+                    role="tab"
+                    aria-selected={activeTab === 'overview'}
+                    aria-controls="panel-overview"
+                    id="tab-overview"
                     className={cn(
-                        "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
-                        activeTab === 'overview' ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted"
+                        "px-4 py-2 text-xs md:text-sm font-semibold rounded-lg transition-all duration-200",
+                        activeTab === 'overview' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                     )}
                 >
                     Overview
@@ -84,9 +313,13 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ userId }) => {
                 {isOwnProfile && (
                     <button
                         onClick={() => setActiveTab('security')}
+                        role="tab"
+                        aria-selected={activeTab === 'security'}
+                        aria-controls="panel-security"
+                        id="tab-security"
                         className={cn(
-                            "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
-                            activeTab === 'security' ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted"
+                            "px-4 py-2 text-xs md:text-sm font-semibold rounded-lg transition-all duration-200",
+                            activeTab === 'security' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                         )}
                     >
                         Security
@@ -96,32 +329,32 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ userId }) => {
 
             {activeTab === 'overview' ? (
                 /* Top Layout Grid */
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4 md:gap-6" role="tabpanel" id="panel-overview" aria-labelledby="tab-overview">
 
                     {/* Left Column: Hero & Stats */}
-                    <div className="lg:col-span-2 space-y-8">
+                    <div className="space-y-4 md:space-y-6 min-w-0">
                         {/* Identity Hero */}
                         <ProfileCard userId={targetUserId} />
 
                         {/* Achievement Gallery */}
-                        <div className="bg-card rounded-3xl p-6 sm:p-8 shadow-sm border border-border">
-                            <div className="flex items-center justify-between mb-6">
-                                <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+                        <div className="bg-card rounded-2xl p-4 sm:p-6 md:p-8 shadow-sm border border-border">
+                            <div className="flex items-center justify-between mb-4 md:mb-6">
+                                <h3 className="text-lg md:text-xl font-bold text-foreground flex items-center gap-2">
                                     <span>🎖️</span> Achievements
                                 </h3>
-                                <span className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full">
+                                <span className="text-xs md:text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full">
                                     {user.badges?.length || 0} / {Object.keys(BADGES_CONFIG).length} Unlocked
                                 </span>
                             </div>
 
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
                                 {Object.entries(BADGES_CONFIG).map(([id, config]) => {
                                     const isUnlocked = user.badges?.includes(id);
                                     return (
                                         <div
                                             key={id}
-                                            className={`group relative flex flex-col items-center p-4 rounded-2xl border-2 transition-all duration-300 ${isUnlocked
-                                                ? 'border-yellow-200 bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/10 dark:to-orange-900/10 dark:border-yellow-700/50 hover:shadow-lg hover:border-yellow-300'
+                                            className={`group relative flex flex-col items-center p-3 md:p-4 rounded-2xl border-2 transition-all duration-300 ${isUnlocked
+                                                ? 'border-warning/30 bg-warning/5 hover:shadow-lg hover:border-warning/50'
                                                 : 'border-border bg-muted/50 grayscale opacity-60 hover:opacity-100'
                                                 }`}
                                         >
@@ -130,7 +363,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ userId }) => {
                                             </div>
                                             <span className="font-bold text-xs text-center text-foreground">{config.name}</span>
                                             {isUnlocked ? (
-                                                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold mt-1 bg-emerald-100 dark:bg-emerald-900/30 px-2 py-0.5 rounded-full">
+                                                <span className="text-[10px] text-success font-bold mt-1 bg-success/15 px-2 py-0.5 rounded-full">
                                                     Unlocked
                                                 </span>
                                             ) : (
@@ -148,20 +381,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ userId }) => {
                         </div>
 
                         {/* Activity Heatmap */}
-                        <div className="bg-card rounded-3xl p-6 sm:p-8 shadow-sm border border-border overflow-hidden">
-                            <div className="flex items-center justify-between mb-6">
-                                <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
-                                    <span>📅</span> Activity Log
-                                </h3>
-                                <div className="flex gap-2 text-xs text-muted-foreground">
-                                    <span className="flex items-center gap-1"><div className="w-2.5 h-2.5 bg-muted rounded-sm"></div> Less</span>
-                                    <span className="flex items-center gap-1"><div className="w-2.5 h-2.5 bg-emerald-600 dark:bg-emerald-500 rounded-sm"></div> More</span>
-                                </div>
-                            </div>
-                            <div className="overflow-x-auto pb-2 scrollbar-hide">
-                                <Heatmap activityLog={user.activityLog || {}} />
-                            </div>
-                        </div>
+                        <ActivityHeatmap activityLog={user.activityLog || {}} />
                     </div>
 
                     {/* Right Column: Leaderboard */}
@@ -172,8 +392,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ userId }) => {
                     </div>
                 </div>
             ) : (
-                <div className="max-w-2xl mx-auto space-y-6">
-                    <div className="bg-card rounded-3xl p-6 sm:p-8 shadow-sm border border-border">
+                <div className="max-w-2xl mx-auto space-y-6" role="tabpanel" id="panel-security" aria-labelledby="tab-security">
+                    <div className="bg-card rounded-2xl p-4 sm:p-6 md:p-8 shadow-sm border border-border">
                         <PasswordChangeForm />
                     </div>
                 </div>

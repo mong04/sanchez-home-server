@@ -27,7 +27,7 @@ export function TbbHeroCard({ month, className = "" }: TbbHeroCardProps) {
     // Confetti logic: fire when TBB goes from negative to >= 0
     const prevTbbRef = useRef<number | null>(null);
     useEffect(() => {
-        if (prevTbbRef.current !== null && prevTbbRef.current < 0 && toBeBudgeted >= 0) {
+        if (prevTbbRef.current !== null && prevTbbRef.current !== 0 && toBeBudgeted === 0) {
             confetti({
                 particleCount: 100,
                 spread: 70,

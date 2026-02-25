@@ -45,10 +45,10 @@ export function NewMonthModal({
                     className="mb-8 mt-4 text-center"
                 >
                     <p className="text-sm font-medium text-emerald-600 uppercase tracking-widest mb-2">Available to Assign</p>
-                    <h2 className="text-5xl font-bold tracking-tight text-zinc-900">
+                    <h2 className="text-5xl font-bold tracking-tight text-foreground">
                         {isLoading ? '...' : formatCurrency(totalAvailable)}
                     </h2>
-                    <div className="flex gap-4 justify-center mt-3 text-sm text-zinc-500 font-medium">
+                    <div className="flex gap-4 justify-center mt-3 text-sm text-muted-foreground font-medium">
                         <span>Income: {formatCurrency(income)}</span>
                         <span>•</span>
                         <span>Rollover: {formatCurrency(rollover)}</span>
@@ -73,13 +73,13 @@ export function NewMonthModal({
                     <Button
                         size="lg"
                         variant="outline"
-                        className="w-full flex justify-start gap-4 h-16 text-lg border-zinc-200 hover:bg-zinc-50 hover:border-zinc-300"
+                        className="w-full flex justify-start gap-4 h-16 text-lg border-border hover:bg-accent hover:border-border"
                         onClick={() => {
                             onCopyPrevious();
                             onClose();
                         }}
                     >
-                        <div className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-600">
+                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
                             <Copy className="w-4 h-4" />
                         </div>
                         Copy Last Month's Budget
@@ -88,20 +88,20 @@ export function NewMonthModal({
                     <Button
                         size="lg"
                         variant="outline"
-                        className="w-full flex justify-start gap-4 h-16 text-lg border-zinc-200 hover:bg-zinc-50 hover:border-zinc-300"
+                        className="w-full flex justify-start gap-4 h-16 text-lg border-border hover:bg-accent hover:border-border"
                         onClick={() => {
                             onUseAverage();
                             onClose();
                         }}
                     >
-                        <div className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-600">
+                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
                             <Calculator className="w-4 h-4" />
                         </div>
                         Use 3-Month Average
                     </Button>
                 </div>
 
-                <div className="mt-8 pt-6 border-t border-zinc-100 w-full flex justify-center">
+                <div className="mt-8 pt-6 border-t border-border w-full flex justify-center">
                     <button className="flex items-center gap-2 text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors">
                         <Users className="w-4 h-4" />
                         {isPartnerOnline ? "Start a Money Date with partner" : "Start a Money Date"}

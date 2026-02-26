@@ -5,6 +5,7 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import './index.css'
 import { router } from './router'
 import { queryClient, idbPersister } from './lib/query-client'
+import { BackendProvider } from './providers/BackendProvider'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -12,7 +13,10 @@ createRoot(document.getElementById('root')!).render(
       client={queryClient}
       persistOptions={{ persister: idbPersister }}
     >
-      <RouterProvider router={router} />
+      <BackendProvider>
+        <RouterProvider router={router} />
+      </BackendProvider>
     </PersistQueryClientProvider>
   </StrictMode>,
 )
+

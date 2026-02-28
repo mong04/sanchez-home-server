@@ -1,7 +1,7 @@
 // src/hooks/useFinanceData.ts — Finance module data hooks (accounts, transactions, categories)
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { pb } from '../lib/pocketbase';
+import { useBackend } from '../providers/BackendProvider';
 import {
     Collections,
     type AccountRecord,
@@ -19,12 +19,13 @@ export interface AccountWithBalance extends AccountRecord {
 }
 
 export function useAccounts() {
+    const { adapter } = useBackend();
     return useQuery({
         queryKey: [Collections.Accounts],
         queryFn: async (): Promise<AccountWithBalance[]> => {
             const [raw, allTxs] = await Promise.all([
-                pb.collection(Collections.Accounts).getFullList<AccountRecord>({ sort: 'name' }),
-                pb.collection(Collections.Transactions).getFullList<{ account: string; amount?: number }>({}),
+                adapter.getFullList<AccountRecord>(Collections.Accounts, { sort: 'name' }),
+                adapter.getFullList<{ account: string; amount?: number }>(Collections.Transactions, {}),
             ]);
             const txsByAccount = new Map<string, { amount: number }[]>();
             for (const tx of allTxs) {
@@ -44,12 +45,14 @@ export function useAccounts() {
 
 export function useCreateAccount() {
     const queryClient = useQueryClient();
+    const { adapter } = useBackend();
 
     return useMutation({
         mutationFn: async (newAccount: Partial<AccountRecord>) => {
-            return await pb.collection(Collections.Accounts).create<AccountRecord>({
+            const user = adapter.getCurrentUser();
+            return await adapter.create<AccountRecord>(Collections.Accounts, {
                 ...newAccount,
-                owner: pb.authStore.model?.id,
+                owner: user?.id,
             });
         },
         onSuccess: async () => {
@@ -60,10 +63,11 @@ export function useCreateAccount() {
 
 export function useUpdateAccount() {
     const queryClient = useQueryClient();
+    const { adapter } = useBackend();
 
     return useMutation({
         mutationFn: async ({ id, data }: { id: string; data: Partial<AccountRecord> }) => {
-            return await pb.collection(Collections.Accounts).update<AccountRecord>(id, data);
+            return await adapter.update<AccountRecord>(Collections.Accounts, id, data);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [Collections.Accounts] });
@@ -73,10 +77,11 @@ export function useUpdateAccount() {
 
 export function useDeleteAccount() {
     const queryClient = useQueryClient();
+    const { adapter } = useBackend();
 
     return useMutation({
         mutationFn: async (id: string) => {
-            return await pb.collection(Collections.Accounts).delete(id);
+            return await adapter.delete(Collections.Accounts, id);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [Collections.Accounts] });
@@ -88,6 +93,7 @@ export function useDeleteAccount() {
 // ─── Transaction Queries ─────────────────────────────────────────
 
 export function useTransactions(filters?: { accountId?: string; cleared?: boolean }) {
+    const { adapter } = useBackend();
     return useQuery({
         queryKey: [Collections.Transactions, filters],
         queryFn: async () => {
@@ -96,7 +102,9 @@ export function useTransactions(filters?: { accountId?: string; cleared?: boolea
             if (filters?.accountId) filterParts.push(`account = "${filters.accountId}"`);
             if (filters?.cleared !== undefined) filterParts.push(`cleared = ${filters.cleared}`);
 
-            const result = await pb.collection(Collections.Transactions).getList<TransactionRecord>(1, 500, {
+            const result = await adapter.getList<TransactionRecord>(Collections.Transactions, {
+                page: 1,
+                perPage: 500,
                 filter: filterParts.length ? filterParts.join(' && ') : undefined,
                 sort: '-date',
                 expand: 'account,category',
@@ -109,12 +117,14 @@ export function useTransactions(filters?: { accountId?: string; cleared?: boolea
 
 export function useAddTransaction() {
     const queryClient = useQueryClient();
+    const { adapter } = useBackend();
 
     return useMutation({
         mutationFn: async (newTransaction: Partial<TransactionRecord>) => {
-            return await pb.collection(Collections.Transactions).create<TransactionRecord>({
+            const user = adapter.getCurrentUser();
+            return await adapter.create<TransactionRecord>(Collections.Transactions, {
                 ...newTransaction,
-                createdBy: pb.authStore.model?.id,
+                createdBy: user?.id,
             });
         },
         onMutate: async (newTransaction) => {
@@ -151,10 +161,11 @@ export function useAddTransaction() {
 
 export function useUpdateTransaction() {
     const queryClient = useQueryClient();
+    const { adapter } = useBackend();
 
     return useMutation({
         mutationFn: async ({ id, data }: { id: string; data: Partial<TransactionRecord> }) => {
-            return pb.collection(Collections.Transactions).update<TransactionRecord>(id, data);
+            return adapter.update<TransactionRecord>(Collections.Transactions, id, data);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [Collections.Transactions] });
@@ -165,10 +176,11 @@ export function useUpdateTransaction() {
 
 export function useDeleteTransaction() {
     const queryClient = useQueryClient();
+    const { adapter } = useBackend();
 
     return useMutation({
         mutationFn: async (id: string) => {
-            return await pb.collection(Collections.Transactions).delete(id);
+            return await adapter.delete(Collections.Transactions, id);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [Collections.Transactions] });
@@ -179,10 +191,11 @@ export function useDeleteTransaction() {
 
 export function useToggleCleared() {
     const queryClient = useQueryClient();
+    const { adapter } = useBackend();
 
     return useMutation({
         mutationFn: async ({ id, cleared }: { id: string; cleared: boolean }) => {
-            return pb.collection(Collections.Transactions).update(id, { cleared });
+            return adapter.update(Collections.Transactions, id, { cleared });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [Collections.Transactions] });
@@ -193,11 +206,12 @@ export function useToggleCleared() {
 // ─── Category Queries ────────────────────────────────────────────
 
 export function useCategories(type?: 'income' | 'expense') {
+    const { adapter } = useBackend();
     return useQuery({
         queryKey: [Collections.Categories, type],
         queryFn: async () => {
             const filter = type ? `type = "${type}"` : undefined;
-            return await pb.collection(Collections.Categories).getFullList<CategoryRecord>({
+            return await adapter.getFullList<CategoryRecord>(Collections.Categories, {
                 filter,
                 sort: 'name',
             });
@@ -207,12 +221,14 @@ export function useCategories(type?: 'income' | 'expense') {
 
 export function useCreateCategory() {
     const queryClient = useQueryClient();
+    const { adapter } = useBackend();
 
     return useMutation({
         mutationFn: async (newCategory: Partial<CategoryRecord>) => {
-            return await pb.collection(Collections.Categories).create<CategoryRecord>({
+            const user = adapter.getCurrentUser();
+            return await adapter.create<CategoryRecord>(Collections.Categories, {
                 ...newCategory,
-                owner: pb.authStore.model?.id,
+                owner: user?.id,
             });
         },
         onSuccess: () => {
@@ -223,10 +239,11 @@ export function useCreateCategory() {
 
 export function useUpdateCategory() {
     const queryClient = useQueryClient();
+    const { adapter } = useBackend();
 
     return useMutation({
         mutationFn: async ({ id, data }: { id: string; data: Partial<CategoryRecord> }) => {
-            return await pb.collection(Collections.Categories).update<CategoryRecord>(id, data);
+            return await adapter.update<CategoryRecord>(Collections.Categories, id, data);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [Collections.Categories] });
@@ -238,10 +255,11 @@ export function useUpdateCategory() {
 
 export function useDeleteCategory() {
     const queryClient = useQueryClient();
+    const { adapter } = useBackend();
 
     return useMutation({
         mutationFn: async (id: string) => {
-            return await pb.collection(Collections.Categories).delete(id);
+            return await adapter.delete(Collections.Categories, id);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [Collections.Categories] });
@@ -263,10 +281,11 @@ export function useBudgetMonth(month: string) {
 
 export function useUpdateBudgetMonth() {
     const queryClient = useQueryClient();
+    const { adapter } = useBackend();
 
     return useMutation({
         mutationFn: async ({ id, data }: { id: string; data: Partial<BudgetMonthRecord> }) => {
-            return await pb.collection(Collections.BudgetMonths).update<BudgetMonthRecord>(id, data);
+            return await adapter.update<BudgetMonthRecord>(Collections.BudgetMonths, id, data);
         },
         onSuccess: (_, _variables) => {
             // Invalidate the specific month being edited

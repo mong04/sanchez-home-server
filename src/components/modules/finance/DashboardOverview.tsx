@@ -51,14 +51,14 @@ export function DashboardOverview() {
 
                 {/* To Be Budgeted Hero Card */}
                 <Card
-                    className={`group cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden border-0 ${toBeBudgeted >= 0 ? 'bg-emerald-600' : 'bg-rose-500'}`}
+                    className={`group cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden border-0 ${toBeBudgeted >= 0 ? 'bg-success' : 'bg-destructive'}`}
                     onClick={() => setActiveTab('budget')}
                 >
                     <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none transition-transform group-hover:scale-110 duration-700" />
 
                     <CardContent className="p-6 md:p-8 flex flex-col justify-between h-full relative z-10">
                         <div className="flex justify-between items-start mb-6">
-                            <h3 className="text-emerald-50 text-base font-medium uppercase tracking-wider flex items-center gap-2">
+                            <h3 className="text-success-foreground font-medium uppercase tracking-wider flex items-center gap-2">
                                 <Sparkles className="w-4 h-4" />
                                 To Be Budgeted
                             </h3>
@@ -76,7 +76,7 @@ export function DashboardOverview() {
                             >
                                 {formatCurrency(toBeBudgeted)}
                             </motion.div>
-                            <p className="text-emerald-100/90 text-sm font-medium">
+                            <p className="text-success-foreground/90 text-sm font-medium">
                                 {toBeBudgeted > 0 ? 'Ready to give these dollars a job.' : toBeBudgeted < 0 ? 'You are overbudgeted. Fix this soon.' : 'Every dollar has a job. Perfect.'}
                             </p>
                         </div>
@@ -156,7 +156,7 @@ export function DashboardOverview() {
                                         return (
                                             <div key={tx.id} className="group flex flex-col sm:flex-row sm:items-center justify-between py-3 px-2 rounded-lg hover:bg-muted/50 transition-colors gap-2 sm:gap-4">
                                                 <div className="flex items-center gap-3 min-w-0">
-                                                    <div className={`p-2 rounded-xl shrink-0 ${isIncome ? 'bg-emerald-500/10 text-emerald-600' : 'bg-rose-500/10 text-rose-600'}`}>
+                                                    <div className={`p-2 rounded-xl shrink-0 ${isIncome ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
                                                         {isIncome ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
                                                     </div>
                                                     <div className="min-w-0">
@@ -165,7 +165,7 @@ export function DashboardOverview() {
                                                     </div>
                                                 </div>
                                                 <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center w-full sm:w-auto pl-11 sm:pl-0">
-                                                    <span className={`text-sm font-semibold tabular-nums ${isIncome ? 'text-emerald-600' : 'text-foreground'}`}>
+                                                    <span className={`text-sm font-semibold tabular-nums ${isIncome ? 'text-success' : 'text-foreground'}`}>
                                                         {isIncome ? '+' : ''}{formatCurrency(Math.abs(tx.amount))}
                                                     </span>
                                                     <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium sm:mt-1">{tx.expand?.category?.name || 'Uncategorized'}</span>
@@ -190,8 +190,8 @@ export function DashboardOverview() {
                     <CardContent className="pt-4 px-4 pb-4">
                         {upcomingBills.length === 0 ? (
                             <div className="text-center py-8 text-muted-foreground text-sm flex flex-col items-center">
-                                <div className="p-3 rounded-full bg-emerald-500/10 mb-3 border border-emerald-500/20">
-                                    <Wallet className="w-5 h-5 text-emerald-500" />
+                                <div className="p-3 rounded-full bg-success/10 mb-3 border border-success/20">
+                                    <Wallet className="w-5 h-5 text-success" />
                                 </div>
                                 <span className="font-medium text-foreground">You're completely caught up!</span>
                                 <span className="text-xs mt-1">No due bills in the next 30 days.</span>

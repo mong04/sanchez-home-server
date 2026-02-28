@@ -1,0 +1,17 @@
+# Report 2: Architectural Consistency
+
+**Objective:** Assess the project's adherence to the core engineering principles established in the `PRD.md`, specifically regarding the "Backend Abstraction" mandate.
+
+## The Mandate
+`PRD.md` clearly states:
+> **New Non-Negotiable (Feb 2026):** The BackendAdapter pattern is the new architectural north star. All data operations (CRUD, realtime, auth, storage) **must** route through the adapter. Direct imports of `pocketbase` or `@supabase/supabase-js` are now forbidden outside the adapter files.
+
+## 🔍 New Discovery: The Microservice Divergence
+While the frontend React application adheres strictly to the `BackendAdapter` pattern, the newly implemented **Web Push signaling server** (`src/server/signaling.js`) fundamentally bypasses this architectural constraint. 
+
+Because it operates as an independent Node process to broker PartyKit presence and web push events, it makes raw `fetch` requests directly to PocketBase's API endpoints. 
+
+**Alignment Issue:**
+While technically necessary for a decoupled signaling server, this creates an architectural divergence. The system now has *two* independent sources of truth for defining database schemas and identifiers: the `BackendAdapter` (frontend) and the `signaling.js` server (backend). This divergence was the direct root cause of the prolonged "Profile UUID vs PocketBase Relation ID" bug we actively fought, as the signaling server lacked the abstraction logic the frontend adapter possessed.
+
+**Recommendation:** The signaling server should ideally share the `BackendAdapter` abstraction or utilize PocketBase/Supabase Edge Functions internally rather than existing as a disjointed Node Express server, if we are to strictly follow the PRD logic.

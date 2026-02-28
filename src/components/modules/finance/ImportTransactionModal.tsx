@@ -135,10 +135,10 @@ export const ImportTransactionModal: React.FC<ImportTransactionModalProps> = ({ 
                 )}
 
                 {successCount !== null && (
-                    <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex flex-col items-center justify-center gap-2 animate-in fade-in slide-in-from-bottom-2">
+                    <div className="p-4 rounded-lg bg-success/10 border border-success/20 text-success flex flex-col items-center justify-center gap-2 animate-in fade-in slide-in-from-bottom-2">
                         <CheckCircle2 className="w-8 h-8" />
                         <p className="font-medium text-lg">Success!</p>
-                        <p className="text-sm border-t border-emerald-500/20 pt-2 w-full text-center">
+                        <p className="text-sm border-t border-success/20 pt-2 w-full text-center">
                             Successfully imported {successCount} transactions.
                         </p>
                     </div>

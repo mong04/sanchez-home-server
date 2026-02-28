@@ -4,13 +4,7 @@ import { Plus, X, Check, Briefcase, SplitSquareHorizontal, ChevronDown, RotateCc
 import { useAddTransaction, useCategories, useAccounts, useTransactions } from '../../../hooks/useFinanceData';
 import { useFinanceStore } from '../../../stores/useFinanceStore';
 import { useBudgetYjs } from '../../../hooks/useBudgetYjs';
-
-const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-    }).format(amount);
-};
+import { formatCurrency } from '../../../lib/utils';
 
 type Step = 'amount' | 'category' | 'payee';
 
@@ -374,7 +368,7 @@ export function TransactionFab() {
                                             setStep('amount');
                                         }
                                     }}
-                                    className="text-emerald-600 text-sm font-medium hover:text-emerald-700"
+                                    className="text-primary text-sm font-medium hover:text-primary/80"
                                 >
                                     Back
                                 </button>
@@ -393,7 +387,7 @@ export function TransactionFab() {
                                     >
                                         <motion.div
                                             initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", delay: 0.1 }}
-                                            className="w-20 h-20 rounded-full bg-emerald-500/10 flex items-center justify-center mb-6 text-emerald-500"
+                                            className="w-20 h-20 rounded-full bg-success/10 flex items-center justify-center mb-6 text-success"
                                         >
                                             <Check className="w-10 h-10" />
                                         </motion.div>
@@ -403,7 +397,7 @@ export function TransactionFab() {
                                         </p>
                                         <button
                                             onClick={() => setIsSaved(false)}
-                                            className="mt-8 text-sm text-emerald-600 font-medium hover:underline flex items-center gap-1"
+                                            className="mt-8 text-sm text-primary font-medium hover:underline flex items-center gap-1"
                                         >
                                             <RotateCcw className="w-4 h-4" /> Undo
                                         </button>
@@ -425,7 +419,7 @@ export function TransactionFab() {
                                                     onClick={() => setShowAccountSelector(!showAccountSelector)}
                                                     className="flex items-center gap-2 bg-muted/50 hover:bg-muted px-4 py-2 rounded-full transition-colors border border-border/50 text-sm font-medium"
                                                 >
-                                                    <Briefcase className="w-4 h-4 text-emerald-600" />
+                                                    <Briefcase className="w-4 h-4 text-primary" />
                                                     <span className="truncate max-w-[150px]">{activeAccount?.name || 'Select Account'}</span>
                                                     <ChevronDown className="w-4 h-4 text-muted-foreground" />
                                                 </button>
@@ -442,7 +436,7 @@ export function TransactionFab() {
                                                                     <button
                                                                         key={acc.id}
                                                                         onClick={() => { setSelectedAccountId(acc.id); setShowAccountSelector(false); }}
-                                                                        className={`w-full text-left px-4 py-3 hover:bg-muted text-sm font-medium transition-colors ${selectedAccountId === acc.id ? 'bg-emerald-500/10 text-emerald-600' : ''}`}
+                                                                        className={`w-full text-left px-4 py-3 hover:bg-muted text-sm font-medium transition-colors ${selectedAccountId === acc.id ? 'bg-primary/10 text-primary' : ''}`}
                                                                     >
                                                                         {acc.name}
                                                                     </button>
@@ -457,7 +451,7 @@ export function TransactionFab() {
                                             <div className="flex flex-col items-center w-full px-6 gap-4">
                                                 <div
                                                     onClick={() => setActiveInput('main')}
-                                                    className={`w-full flex justify-center items-baseline pb-2 border-b-2 transition-colors ${activeInput === 'main' ? 'border-emerald-500' : 'border-transparent opacity-50'}`}
+                                                    className={`w-full flex justify-center items-baseline pb-2 border-b-2 transition-colors ${activeInput === 'main' ? 'border-primary' : 'border-transparent opacity-50'}`}
                                                 >
                                                     <span className="text-3xl text-muted-foreground/50 mr-1 font-semibold">$</span>
                                                     <span className="text-6xl font-bold tracking-tight text-foreground truncate">{amountStr}</span>
@@ -511,7 +505,7 @@ export function TransactionFab() {
                                             <button
                                                 onClick={handleNext}
                                                 disabled={parseFloat(amountStr) <= 0 || (isSplit && parseFloat(splitAmountStr) >= parseFloat(amountStr))}
-                                                className="w-full h-16 sm:h-16 bg-emerald-600 hover:bg-emerald-700 disabled:bg-muted disabled:text-muted-foreground text-white text-lg font-bold transition-colors flex items-center justify-center shrink-0"
+                                                className="w-full h-16 sm:h-16 bg-primary hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground text-primary-foreground text-lg font-bold transition-colors flex items-center justify-center shrink-0"
                                             >
                                                 Next
                                             </button>
@@ -533,7 +527,7 @@ export function TransactionFab() {
                                                     <button
                                                         key={`sugg-${cat.id}`}
                                                         onClick={() => handleCategorySelect(cat.id)}
-                                                        className="flex flex-col items-center justify-center p-3 rounded-2xl border-2 border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 transition-colors"
+                                                        className="flex flex-col items-center justify-center p-3 rounded-2xl border-2 border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors"
                                                     >
                                                         <div className="w-10 h-10 rounded-full flex items-center justify-center mb-2 shadow-sm" style={{ backgroundColor: cat.color || 'hsl(var(--muted))', color: '#fff' }}>
                                                             {cat.icon || '📌'}
@@ -550,7 +544,7 @@ export function TransactionFab() {
                                                 <button
                                                     key={cat.id}
                                                     onClick={() => handleCategorySelect(cat.id)}
-                                                    className="flex flex-col items-center justify-center p-3 rounded-2xl border border-border hover:border-emerald-500/50 hover:bg-muted/50 transition-colors"
+                                                    className="flex flex-col items-center justify-center p-3 rounded-2xl border border-border hover:border-primary/50 hover:bg-muted/50 transition-colors"
                                                 >
                                                     <div className="w-8 h-8 rounded-full flex items-center justify-center mb-2" style={{ backgroundColor: cat.color || 'hsl(var(--muted))', color: '#fff' }}>
                                                         {cat.icon || '📌'}
@@ -578,7 +572,7 @@ export function TransactionFab() {
                                                             <button
                                                                 key={p}
                                                                 onClick={() => handlePayeeSubmit(p)}
-                                                                className="flex items-center justify-center p-4 rounded-2xl bg-muted/50 hover:bg-emerald-500/10 hover:text-emerald-600 border border-border hover:border-emerald-500/30 transition-colors text-foreground font-semibold text-lg"
+                                                                className="flex items-center justify-center p-4 rounded-2xl bg-muted/50 hover:bg-primary/10 hover:text-primary border border-border hover:border-primary/30 transition-colors text-foreground font-semibold text-lg"
                                                             >
                                                                 {p}
                                                             </button>
@@ -597,13 +591,13 @@ export function TransactionFab() {
                                                         if (e.key === 'Enter') handlePayeeSubmit(payeeStr);
                                                     }}
                                                     placeholder="Type payee name..."
-                                                    className="flex-1 h-14 rounded-2xl border-2 border-input bg-background px-4 py-2 text-lg font-semibold text-foreground ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-emerald-500 transition-colors"
+                                                    className="flex-1 h-14 rounded-2xl border-2 border-input bg-background px-4 py-2 text-lg font-semibold text-foreground ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-primary transition-colors"
                                                     autoFocus
                                                 />
                                                 <button
                                                     onClick={() => handlePayeeSubmit(payeeStr)}
                                                     disabled={!payeeStr.trim()}
-                                                    className="h-14 w-14 flex items-center justify-center shrink-0 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-muted disabled:text-muted-foreground text-white transition-colors"
+                                                    className="h-14 w-14 flex items-center justify-center shrink-0 rounded-2xl bg-primary hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground text-primary-foreground transition-colors"
                                                 >
                                                     <Check className="w-6 h-6" />
                                                 </button>
@@ -621,9 +615,9 @@ export function TransactionFab() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={toggleOpen}
-                className={`w-14 h-14 md:w-16 md:h-16 rounded-2xl md:rounded-full shadow-xl flex items-center justify-center transition-colors text-white pointer-events-auto
-                    ${isOpen ? 'bg-muted-foreground' : 'bg-emerald-600 hover:bg-emerald-700'}
-                `}
+                className={`w-14 h-14 md:w-16 md:h-16 rounded-2xl md:rounded-full shadow-xl flex items-center justify-center transition-colors text-primary-foreground pointer-events-auto
+                     ${isOpen ? 'bg-muted-foreground' : 'bg-primary hover:bg-primary/90'}
+                 `}
             >
                 <motion.div animate={{ rotate: isOpen ? 45 : 0 }}>
                     <Plus className="w-7 h-7 md:w-8 md:h-8" />

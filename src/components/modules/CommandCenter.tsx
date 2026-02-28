@@ -9,6 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '../common/Card';
 import { Button } from '../common/Button';
 import { Leaderboard } from '../modules/Leaderboard';
 import { format } from 'date-fns';
+import { useState, useEffect } from 'react';
+import { PushPermissionDialog } from '../common/PushPermissionDialog';
+import { isPushSupported, getSubscription } from '../../lib/push';
 
 function getGreeting(): { text: string; emoji: string } {
     const hour = new Date().getHours();
@@ -25,6 +28,22 @@ export function CommandCenter() {
     const { messages } = useMessenger();
     const { getMyActiveChores, rotateChore } = useChores();
     const { getUpcomingBills } = useBills();
+    const [showPushPrompt, setShowPushPrompt] = useState(false);
+
+    useEffect(() => {
+        const checkPush = async () => {
+            if (isPushSupported()) {
+                const sub = await getSubscription();
+                const hasDismissed = localStorage.getItem('sfos-push-prompt-dismissed');
+                if (!sub && !hasDismissed) {
+                    // Premium touch: Wait 3 seconds after load to not overwhelm the user
+                    const timer = setTimeout(() => setShowPushPrompt(true), 3000);
+                    return () => clearTimeout(timer);
+                }
+            }
+        };
+        checkPush();
+    }, []);
 
     const userId = user?.id || '';
     const activeChores = getMyActiveChores(userId);
@@ -307,6 +326,15 @@ export function CommandCenter() {
                     </Card>
                 </div>
             </div>
+
+            <PushPermissionDialog
+                isOpen={showPushPrompt}
+                onClose={() => {
+                    setShowPushPrompt(false);
+                    // Don't show again for 7 days if dismissed
+                    localStorage.setItem('sfos-push-prompt-dismissed', Date.now().toString());
+                }}
+            />
         </div>
     );
 }

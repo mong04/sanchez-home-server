@@ -1,0 +1,31 @@
+# Master Project Alignment Report (Feb 27, 2026)
+
+**Executive Summary:**
+The Sanchez Family OS project is currently running ahead of its official roadmap regarding critical features, but the underlying documentation (`PRD.md`, `ROADMAP.md`, `PROJECT_STATUS.md`) and the test suite are lagging behind the actual technical reality. In our haste to deliver high-value "Must Fix" items, we have introduced a hidden architectural divergence that recently caused significant debugging friction.
+
+## Key Discoveries & Misalignments
+
+### 1. Roadmap Inversion (Feature Delivery vs. Plan)
+According to the `ROADMAP.md` and `PROJECT_STATUS.md`, the current active phase is **Phase 11.5: Backend Abstraction**, with **Web Push Notifications** slated for "Upcoming" (deadline May 31).
+**The Reality:** We have completely finished and shipped Web Push Notifications. We pulled a "Critical Must-Fix" feature forward by an entire fiscal quarter, but the roadmap still lists it as pending. Meanwhile, the actual deliverables for Phase 11.5 (specifically the 5-page Migration Wizard) haven't been touched.
+
+### 2. The Architectural Divergence (PRD vs. Codebase)
+The `PRD.md` clearly states a *"New Non-Negotiable"* rule: all data operations **must** route through the frontend `BackendAdapter`.
+**The Reality:** To support real-time PartyKit and Web Push functionality, we spun up a separate Node.js `signaling.js` server. This server makes raw, direct `fetch` calls to PocketBase, completely bypassing the `BackendAdapter` abstraction. 
+**Why it matters:** This disjointed architecture is the exact reason we just spent four hours debugging the "Profile UUID vs PocketBase Relation ID" bug. The frontend knew how to handle the abstraction, but the signaling server was hardcoded to expect different ID structures.
+
+### 3. The "Zero Issues" Illusion (Status vs. Operations)
+`PROJECT_STATUS.md` reports an overly optimistic snapshot: "Issues: None" and "34 Tests Passing".
+**The Reality:** 
+1. We just survived a critical stabilization period involving Service Worker deadlocks and React Router race conditions. 
+2. **Hanging CI:** The background test suite (`npm test lib/backend/tests`) has been hanging silently in the terminal for over **3 hours**. The recent sweeping changes to `AuthContext`, `BackendProvider`, and the Backend Adapters have likely broken mocked database connections in the test suite, meaning the "34 Tests Passing" metric is entirely stale.
+
+---
+
+## Strategic Recommendations
+
+Before writing another line of feature code (like Bank Sync or the Migration Wizard), we must realign the project's foundation:
+
+1. **Document the Victory:** Update `ROADMAP.md` and `PROJECT_STATUS.md` to officially mark Web Push Notifications as `[x] Complete` so we can celebrate the win.
+2. **Kill the Hanging Tests:** We need to restart and fix the Vitest suite. With the new eagerly-loaded `BackendProvider` and JWT PartyKit auth, the test mocks need updating to prevent hanging.
+3. **Decide on the Architecture Split:** We must officially decide if the `signaling.js` server gets an exemption in the `PRD.md` to bypass the `BackendAdapter`, or if we need to refactor it to use the adapter class universally.

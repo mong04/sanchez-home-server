@@ -6,9 +6,7 @@ import { cn } from '../../lib/utils';
 import { searchEmojis } from '../../lib/emojis';
 import { useDebounce } from '../../hooks/useDebounce';
 
-const EmojiPickerModal = lazy(() =>
-    import('./EmojiPickerModal').then(m => ({ default: m.EmojiPickerModal }))
-);
+const EmojiPickerModal = lazy(() => import('./EmojiPickerModal'));
 
 interface PredictiveEmojiBarProps {
     /** The category name (or any string) used to derive emoji suggestions. */

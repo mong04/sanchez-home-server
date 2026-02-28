@@ -33,7 +33,7 @@ const TABS = [
 function TabLoading() {
     return (
         <div className="w-full h-64 flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500" />
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
         </div>
     );
 }
@@ -110,39 +110,39 @@ export function FinanceDashboard() {
     const displayMonthShort = format(parse(currentMonth, 'yyyy-MM', new Date()), 'MMM yyyy');
 
     return (
-        <div className="min-h-screen bg-background text-foreground pb-4 lg:pb-8 selection:bg-emerald-500/20 selection:text-emerald-700 dark:selection:text-emerald-300 relative w-full">
+        <div className="min-h-screen bg-background text-foreground pb-4 lg:pb-8 selection:bg-primary/20 selection:text-primary relative w-full">
 
             {/* --- UNIVERSAL NORMAL FLOW HERO AREA (NOT STICKY - Scrolls away organically) --- */}
             <div ref={heroRef} className="flex flex-col pt-8 px-4 max-w-5xl mx-auto">
                 {/* Dash Header */}
-                <div className="bg-gradient-to-b from-emerald-900 via-emerald-800 to-emerald-900 text-white rounded-3xl md:rounded-[2.5rem] shadow-xl p-6 md:p-8 relative overflow-hidden flex flex-col lg:flex-row lg:items-center justify-between gap-6 md:gap-8">
-                    <div className="absolute top-0 right-0 w-64 md:w-96 h-64 md:h-96 bg-emerald-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-                    <div className="hidden lg:block absolute bottom-0 left-0 w-72 h-72 bg-emerald-700/30 rounded-full blur-3xl translate-y-1/3 -translate-x-1/4 pointer-events-none" />
+                <div className="bg-gradient-to-b from-primary/90 via-primary to-primary/90 text-primary-foreground rounded-3xl md:rounded-[2.5rem] shadow-xl p-6 md:p-8 relative overflow-hidden flex flex-col lg:flex-row lg:items-center justify-between gap-6 md:gap-8">
+                    <div className="absolute top-0 right-0 w-64 md:w-96 h-64 md:h-96 bg-primary-foreground/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+                    <div className="hidden lg:block absolute bottom-0 left-0 w-72 h-72 bg-primary-foreground/20 rounded-full blur-3xl translate-y-1/3 -translate-x-1/4 pointer-events-none" />
 
                     <div className="relative z-10 flex flex-col gap-4">
                         <div>
                             <h1 className="text-3xl lg:text-4xl font-bold tracking-tight">Sanchez Family OS</h1>
-                            <p className="text-emerald-100/90 font-medium mt-1 flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Finance Center
+                            <p className="text-primary-foreground font-medium mt-1 flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground" /> Finance Center
                             </p>
                         </div>
 
                         {/* Desktop-only internal Month Nav (optional visual balance) */}
                         {activeTab === 'budget' && (
-                            <div className="hidden lg:flex items-center gap-4 bg-emerald-950/40 backdrop-blur-md p-1.5 rounded-2xl border border-emerald-700/50 shadow-inner w-fit">
-                                <button onClick={handlePrevMonth} className="p-2 hover:bg-emerald-800/50 rounded-xl transition-colors text-emerald-100 hover:text-white"><ChevronLeft className="w-5 h-5" /></button>
+                            <div className="hidden lg:flex items-center gap-4 bg-primary-foreground/10 backdrop-blur-md p-1.5 rounded-2xl border border-primary-foreground/20 shadow-inner w-fit">
+                                <button onClick={handlePrevMonth} className="p-2 hover:bg-primary-foreground/20 rounded-xl transition-colors text-primary-foreground"><ChevronLeft className="w-5 h-5" /></button>
                                 <div className="flex flex-col items-center min-w-[130px]">
                                     <span className="text-sm font-semibold tracking-wide">{displayMonth}</span>
                                     <AnimatePresence>
                                         {peerCount > 1 && (
-                                            <motion.div initial={{ opacity: 0, height: 0, margin: 0 }} animate={{ opacity: 1, height: 'auto', marginTop: 2 }} exit={{ opacity: 0, height: 0, margin: 0 }} className="flex items-center gap-1.5 text-[10px] text-emerald-300 uppercase tracking-wider font-bold overflow-hidden">
-                                                <span className="relative flex h-1.5 w-1.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span><span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400"></span></span>
+                                            <motion.div initial={{ opacity: 0, height: 0, margin: 0 }} animate={{ opacity: 1, height: 'auto', marginTop: 2 }} exit={{ opacity: 0, height: 0, margin: 0 }} className="flex items-center gap-1.5 text-[10px] text-primary-foreground uppercase tracking-wider font-bold overflow-hidden">
+                                                <span className="relative flex h-1.5 w-1.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-foreground opacity-75"></span><span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary-foreground"></span></span>
                                                 Partner Live
                                             </motion.div>
                                         )}
                                     </AnimatePresence>
                                 </div>
-                                <button onClick={handleNextMonth} className="p-2 hover:bg-emerald-800/50 rounded-xl transition-colors text-emerald-100 hover:text-white"><ChevronRight className="w-5 h-5" /></button>
+                                <button onClick={handleNextMonth} className="p-2 hover:bg-primary-foreground/20 rounded-xl transition-colors text-primary-foreground"><ChevronRight className="w-5 h-5" /></button>
                             </div>
                         )}
                     </div>
@@ -164,8 +164,8 @@ export function FinanceDashboard() {
                                 <span className="text-sm font-semibold tracking-wide text-foreground">{displayMonth}</span>
                                 <AnimatePresence>
                                     {peerCount > 1 && (
-                                        <motion.div initial={{ opacity: 0, height: 0, margin: 0 }} animate={{ opacity: 1, height: 'auto', marginTop: 2 }} exit={{ opacity: 0, height: 0, margin: 0 }} className="flex items-center gap-1.5 text-[10px] text-emerald-500 dark:text-emerald-400 uppercase tracking-wider font-bold overflow-hidden">
-                                            <span className="relative flex h-1.5 w-1.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 dark:bg-emerald-400 opacity-75"></span><span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-600 dark:bg-emerald-500"></span></span>
+                                        <motion.div initial={{ opacity: 0, height: 0, margin: 0 }} animate={{ opacity: 1, height: 'auto', marginTop: 2 }} exit={{ opacity: 0, height: 0, margin: 0 }} className="flex items-center gap-1.5 text-[10px] text-success uppercase tracking-wider font-bold overflow-hidden">
+                                            <span className="relative flex h-1.5 w-1.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span><span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-success"></span></span>
                                             Partner Live
                                         </motion.div>
                                     )}
@@ -181,7 +181,7 @@ export function FinanceDashboard() {
             </div>
 
             {/* --- UNIVERSAL STICKY HEADER ZONE --- */}
-            <div className="sticky -top-4 md:-top-8 z-40 w-full flex flex-col gap-2 pb-2 pt-0 md:pt-2 mx-auto max-w-5xl pointer-events-none relative transition-all duration-300">
+            <div className="sticky top-0 z-40 w-full flex flex-col gap-2 pb-2 pt-2 mx-auto max-w-5xl pointer-events-none relative transition-all duration-300">
 
                 {/* Primary Tab Row (Responsive) */}
                 <div className="w-full flex justify-center px-1 sm:px-2 md:px-4 pointer-events-auto mt-2 md:mt-0 relative">
@@ -206,12 +206,12 @@ export function FinanceDashboard() {
                                         {isActive && (
                                             <motion.div
                                                 layoutId="activeTab"
-                                                className="absolute inset-0 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-[10px] sm:rounded-xl border border-emerald-500/20"
+                                                className="absolute inset-0 bg-primary/10 rounded-[10px] sm:rounded-xl border border-primary/20"
                                                 initial={false}
                                                 transition={{ type: "spring", stiffness: 400, damping: 30 }}
                                             />
                                         )}
-                                        <Icon className={cn("w-4 h-4 sm:w-3.5 sm:h-3.5 xl:w-[18px] xl:h-[18px] relative z-10", isActive && "text-emerald-600 dark:text-emerald-500")} />
+                                        <Icon className={cn("w-4 h-4 sm:w-3.5 sm:h-3.5 xl:w-[18px] xl:h-[18px] relative z-10", isActive && "text-primary")} />
                                         <span className="relative z-10 truncate w-full sm:w-auto text-center sm:whitespace-nowrap max-w-[70px] xl:max-w-none">{tab.label}</span>
                                     </button>
                                 );

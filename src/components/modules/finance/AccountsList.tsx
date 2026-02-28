@@ -4,7 +4,7 @@ import { useAccounts } from '../../../hooks/useFinanceData';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../../common/Card';
 import { Button } from '../../common/Button';
 import { Plus, CreditCard, Wallet, ArrowRightLeft, Landmark, Edit2, Trash2 } from 'lucide-react';
-import { cn } from '../../../lib/utils';
+import { cn, formatCurrency } from '../../../lib/utils';
 import { useDeleteAccount } from '../../../hooks/useFinanceData';
 import { CreateAccountModal } from './CreateAccountModal';
 import { EditAccountModal } from './EditAccountModal';
@@ -23,14 +23,6 @@ const getAccountIcon = (type: string) => {
         case 'credit': return <ArrowRightLeft className="w-5 h-5" />;
         default: return <Wallet className="w-5 h-5" />;
     }
-};
-
-const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: 2,
-    }).format(amount);
 };
 
 export const AccountsList: React.FC<AccountsListProps> = ({ onCreateAccount, onAddTransaction }) => {
@@ -84,7 +76,7 @@ export const AccountsList: React.FC<AccountsListProps> = ({ onCreateAccount, onA
                 <div className="space-y-1">
                     <h2 className="text-3xl font-semibold tracking-tight">Accounts</h2>
                     <p className="text-muted-foreground text-sm flex items-center gap-2">
-                        Total Balance: <span className={cn("font-medium", totalBalance >= 0 ? "text-emerald-500" : "text-rose-500")}>{formatCurrency(totalBalance)}</span>
+                        Total Balance: <span className={cn("font-medium", totalBalance >= 0 ? "text-success" : "text-destructive")}>{formatCurrency(totalBalance)}</span>
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -177,7 +169,7 @@ export const AccountsList: React.FC<AccountsListProps> = ({ onCreateAccount, onA
                                     <CardContent className="flex-grow space-y-1">
                                         <p className={cn(
                                             "text-3xl font-semibold tracking-tight transition-colors duration-300",
-                                            account.currentBalance < 0 ? "text-rose-500" : "text-foreground"
+                                            account.currentBalance < 0 ? "text-destructive" : "text-foreground"
                                         )}>
                                             {formatCurrency(account.currentBalance)}
                                         </p>

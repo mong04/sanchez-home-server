@@ -6,6 +6,17 @@ import './index.css'
 import { router } from './router'
 import { queryClient, idbPersister } from './lib/query-client'
 import { BackendProvider } from './providers/BackendProvider'
+import { registerSW } from 'virtual:pwa-register'
+
+// Register Service Worker for PWA & Push Notifications
+registerSW({
+  onNeedRefresh() {
+    console.log('New content available, please refresh.')
+  },
+  onOfflineReady() {
+    console.log('App ready to work offline.')
+  },
+})
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

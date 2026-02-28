@@ -18,18 +18,20 @@ const FinanceDashboard = lazy(() => import('./components/modules/finance/Finance
 const ProfilePage = lazy(() => import('./components/profile/ProfilePage').then(m => ({ default: m.ProfilePage })));
 const FamilyManager = lazy(() => import('./components/admin/FamilyManager').then(m => ({ default: m.FamilyManager })));
 
-import { pb } from './lib/pocketbase';
+import { getBackendAdapter } from './providers/BackendProvider';
 
 // Loaders
 const protectedLoader = async () => {
-    if (!pb.authStore.isValid) {
+    const adapter = getBackendAdapter();
+    if (!adapter?.getCurrentUser()) {
         return redirect('/login');
     }
     return null;
 };
 
 const publicLoader = async () => {
-    if (pb.authStore.isValid) {
+    const adapter = getBackendAdapter();
+    if (adapter?.getCurrentUser()) {
         return redirect('/');
     }
     return null;

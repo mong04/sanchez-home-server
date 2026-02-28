@@ -1,5 +1,10 @@
 import { WebSocketServer } from 'ws'
 import http from 'http'
+import webpush from 'web-push'
+import dotenv from 'dotenv'
+import { ServerAdapter } from '../lib/backend/server-adapter.js'
+
+dotenv.config()
 
 // Helper to replace lib0/map to avoid direct dependency issues
 const setIfUndefined = (map, key, create) => {
@@ -21,7 +26,67 @@ const pingTimeout = 30000
 const port = process.env.PORT || 4444
 const wss = new WebSocketServer({ noServer: true })
 
-const server = http.createServer((request, response) => {
+const server = http.createServer(async (request, response) => {
+    console.log(`📡 [HTTP] ${request.method} ${request.url}`);
+
+    // Enable CORS
+    response.setHeader('Access-Control-Allow-Origin', '*')
+    response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+    response.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+
+    if (request.method === 'OPTIONS') {
+        response.writeHead(204)
+        response.end()
+        return
+    }
+
+    if (request.method === 'POST' && request.url === '/api/sfos/send-push') {
+        let body = ''
+        request.on('data', chunk => { body += chunk })
+        request.on('end', async () => {
+            try {
+                const { userId, payload } = JSON.parse(body)
+                const authHeader = request.headers.authorization || '';
+
+                const pbUrl = process.env.VITE_POCKETBASE_URL || 'http://127.0.0.1:8090'
+                const targetId = userId;
+
+                // 2. Fetch subscriptions via ServerAdapter
+                const adapter = new ServerAdapter(pbUrl);
+                const subs = await adapter.getPushSubscriptions(targetId, authHeader);
+
+                if (subs.length === 0) {
+                    console.warn(`No push subscriptions found for ${userId} (targetId: ${targetId})`)
+                }
+
+                // 2. Configure web-push
+                webpush.setVapidDetails(
+                    'mailto:admin@sanchez.family',
+                    process.env.VITE_VAPID_PUBLIC_KEY || '',
+                    process.env.VAPID_PRIVATE_KEY || ''
+                )
+
+                // 3. Send to all endpoints
+                const results = await Promise.allSettled(subs.map(sub => {
+                    const pushSubscription = {
+                        endpoint: sub.endpoint,
+                        keys: sub.keys
+                    }
+                    return webpush.sendNotification(pushSubscription, JSON.stringify(payload))
+                }))
+
+                console.log(`Push delivery to ${userId} complete. Results:`, results.length)
+                response.writeHead(200, { 'Content-Type': 'application/json' })
+                response.end(JSON.stringify({ success: true, count: results.length }))
+            } catch (err) {
+                console.error('Push Delivery Error:', err)
+                response.writeHead(500, { 'Content-Type': 'application/json' })
+                response.end(JSON.stringify({ error: err.message }))
+            }
+        })
+        return
+    }
+
     response.writeHead(200, { 'Content-Type': 'text/plain' })
     response.end('okay')
 })

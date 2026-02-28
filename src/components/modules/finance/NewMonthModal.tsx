@@ -2,12 +2,7 @@ import { motion } from 'framer-motion';
 import { Modal } from '../../common/Modal';
 import { Button } from '../../common/Button';
 import { useBudgetMonth } from '../../../hooks/useFinanceData';
-const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-    }).format(amount);
-};
+import { formatCurrency } from '../../../lib/utils';
 import { Calendar, Copy, Calculator, Users } from 'lucide-react';
 
 interface NewMonthModalProps {
@@ -44,7 +39,7 @@ export function NewMonthModal({
                     transition={{ delay: 0.1, type: 'spring' }}
                     className="mb-8 mt-4 text-center"
                 >
-                    <p className="text-sm font-medium text-emerald-600 uppercase tracking-widest mb-2">Available to Assign</p>
+                    <p className="text-sm font-medium text-success uppercase tracking-widest mb-2">Available to Assign</p>
                     <h2 className="text-5xl font-bold tracking-tight text-foreground">
                         {isLoading ? '...' : formatCurrency(totalAvailable)}
                     </h2>
@@ -58,14 +53,14 @@ export function NewMonthModal({
                 <div className="w-full flex flex-col gap-3">
                     <Button
                         size="lg"
-                        className="w-full flex justify-start gap-4 h-16 text-lg bg-emerald-600 hover:bg-emerald-700"
+                        className="w-full flex justify-start gap-4 h-16 text-lg"
                         onClick={() => {
                             onStartFresh();
                             onClose();
                         }}
                     >
-                        <div className="w-8 h-8 rounded-full bg-emerald-500/30 flex items-center justify-center">
-                            <Calendar className="w-4 h-4 text-white" />
+                        <div className="w-8 h-8 rounded-full bg-primary-foreground/20 flex items-center justify-center">
+                            <Calendar className="w-4 h-4 text-primary-foreground" />
                         </div>
                         Start Fresh — Assign Every Dollar
                     </Button>
@@ -102,7 +97,7 @@ export function NewMonthModal({
                 </div>
 
                 <div className="mt-8 pt-6 border-t border-border w-full flex justify-center">
-                    <button className="flex items-center gap-2 text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors">
+                    <button className="flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors">
                         <Users className="w-4 h-4" />
                         {isPartnerOnline ? "Start a Money Date with partner" : "Start a Money Date"}
                     </button>

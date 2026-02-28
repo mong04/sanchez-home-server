@@ -3,39 +3,55 @@
 // Enables "start on free Supabase cloud, migrate to self-hosted PocketBase later" workflow.
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import type { BackendAdapter, User, ExportDump, ImportResult } from './types';
+import type { BackendAdapter, User, ExportDump, ImportResult, PushPayload } from './types';
+import { COLLECTIONS } from './collections';
 
 export class SupabaseAdapter implements BackendAdapter {
     private supabase: SupabaseClient;
+    private currentToken: string | null = null;
+    private currentUser: User | null = null;
 
-    constructor(url: string, anonKey: string, _authToken?: string) {
-        this.supabase = createClient(url, anonKey);
+    constructor(url: string, publishableKey: string, _authToken?: string) {
+        this.supabase = createClient(url, publishableKey);
+        // Try to get initial session asynchronously
+        this.supabase.auth.getSession().then(({ data }) => {
+            this.currentToken = data.session?.access_token ?? null;
+            this.currentUser = data.session?.user ? this.mapUser(data.session.user) : null;
+        });
+    }
+
+    getToken(): string | null {
+        return this.currentToken;
     }
 
     // ─── Auth ─────────────────────────────────────────────────────
     async signIn(email: string, password: string) {
         const { data, error } = await this.supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        this.currentToken = data.session.access_token;
+        this.currentUser = this.mapUser(data.user);
         return {
-            user: this.mapUser(data.user),
-            token: data.session.access_token,
+            user: this.currentUser,
+            token: this.currentToken,
         };
     }
 
     async signOut() {
         await this.supabase.auth.signOut();
+        this.currentToken = null;
+        this.currentUser = null;
     }
 
     getCurrentUser(): User | null {
-        // Synchronous check — Supabase stores session locally
-        // In practice, use the onAuthStateChange listener for reactivity
-        return null;
+        return this.currentUser;
     }
 
     onAuthStateChange(callback: (user: User | null) => void) {
         const { data: { subscription } } = this.supabase.auth.onAuthStateChange(
             (_event, session) => {
-                callback(session ? this.mapUser(session.user) : null);
+                this.currentToken = session?.access_token ?? null;
+                this.currentUser = session ? this.mapUser(session.user) : null;
+                callback(this.currentUser);
             }
         );
         return () => subscription.unsubscribe();
@@ -154,12 +170,7 @@ export class SupabaseAdapter implements BackendAdapter {
             collections: {},
             files: {},
         };
-        const tables = [
-            'users', 'accounts', 'transactions', 'categories',
-            'budget_months', 'budget_allocations', 'chores', 'chore_assignments',
-            'calendar_events', 'shopping_items', 'wellness_logs', 'infinity_log', 'messages',
-        ];
-        for (const table of tables) {
+        for (const table of Object.values(COLLECTIONS)) {
             const { data } = await this.supabase.from(table).select('*');
             dump.collections[table] = data ?? [];
         }
@@ -193,7 +204,20 @@ export class SupabaseAdapter implements BackendAdapter {
             email: user.email ?? '',
             name: user.user_metadata?.name ?? '',
             avatar: user.user_metadata?.avatar,
+            partykit_id: user.user_metadata?.partykit_id,
             role: user.user_metadata?.role ?? 'member',
         };
+    }
+
+    async requestPasswordReset(email: string): Promise<void> {
+        const { error } = await this.supabase.auth.resetPasswordForEmail(email);
+        if (error) throw error;
+    }
+
+    async sendPush(userId: string, payload: PushPayload): Promise<void> {
+        const { error } = await this.supabase.functions.invoke('send-push', {
+            body: { userId, payload }
+        });
+        if (error) throw error;
     }
 }

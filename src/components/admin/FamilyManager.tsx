@@ -1,21 +1,14 @@
 import { useState, useEffect } from 'react';
-import { pb } from '../../lib/pocketbase';
+import { useBackend } from '../../providers/BackendProvider';
 import { useAuth } from '../../context/AuthContext';
+import type { User } from '../../lib/backend/types';
 import { Loader2, Link, RefreshCw, User as UserIcon, Shield, Copy, Check } from 'lucide-react';
 import { env } from '../../config/env';
 
-interface PBUser {
-    id: string;
-    email: string;
-    name: string;
-    role: string;
-    partykit_id?: string;
-    created: string;
-}
-
 export function FamilyManager() {
     const { token } = useAuth();
-    const [users, setUsers] = useState<PBUser[]>([]);
+    const { adapter } = useBackend();
+    const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [generatedLink, setGeneratedLink] = useState<{ userId: string, url: string } | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
@@ -28,7 +21,7 @@ export function FamilyManager() {
     const loadUsers = async () => {
         setIsLoading(true);
         try {
-            const records = await pb.collection('users').getFullList<PBUser>({
+            const records = await adapter.getFullList<User>('users', {
                 sort: '-created',
             });
             setUsers(records);
@@ -39,7 +32,7 @@ export function FamilyManager() {
         }
     };
 
-    const generateMagicLink = async (user: PBUser, type: 'setup' | 'reset') => {
+    const generateMagicLink = async (user: User, type: 'setup' | 'reset') => {
         setIsGenerating(true);
         setGeneratedLink(null);
         try {

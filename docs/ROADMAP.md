@@ -1,6 +1,6 @@
 # Sanchez Family OS (SFOS) — Project Roadmap
-**Last updated:** February 25, 2026  
-**Source:** Expert Consultation (Feb 2026) + Internal Team Alignment  
+**Last updated:** February 27, 2026  
+**Source:** Expert Consultation (Feb 2026) + Internal Team Alignment (Sprint Directive)
 **Authority:** This is the authoritative phased plan. All work must reference this document.
 
 ---
@@ -37,6 +37,7 @@
 ## 📋 Upcoming — Expert-Recommended Phasing
 
 ### Phase 11.5: Backend Abstraction & Migration Wizard
+**Status:** IN PROGRESS
 **Target Start:** Immediately after Budget Engine ships  
 **Deadline:** April 15, 2026  
 **Duration:** 2–3 weeks  
@@ -61,7 +62,13 @@ These are non-negotiable adoption drivers identified by market research:
 
 | # | Feature | Why Critical |
 |---|---------|-------------|
-| 1 | **Web Push Notifications** | Families won't check an app proactively — they need reminders for bills, chores, and calendar events |
+| 1 | **✅ Web Push Notifications [COMPLETE]** | Families won't check an app proactively — they need reminders for bills, chores, and calendar events |
+<!-- Web Push Implementation Checklist -->
+<!-- ✅ Complete: Service worker registration -->
+<!-- ✅ Complete: VAPID key setup -->
+<!-- ✅ Complete: Subscription management (DB storage) -->
+<!-- ✅ Complete: Backend integration (BackendAdapter.sendPush) -->
+<!-- ✅ Complete: UI for permission prompt + toasts -->
 | 2 | **Bank Sync / Improved Import** | Manual-only transaction entry is the #1 adoption barrier for finance modules |
 | 3 | **Basic Cross-Module Analytics** | Users need spending trends, category breakdowns, and net worth history to trust the app |
 

@@ -5,8 +5,7 @@ import * as z from 'zod';
 import { Mail, Check, AlertCircle, Loader2, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils';
-import { pb } from '../../lib/pocketbase';
-import { ClientResponseError } from 'pocketbase';
+import { useBackend } from '../../providers/BackendProvider';
 
 const forgotPasswordSchema = z.object({
     email: z.string().email('Please enter a valid email address'),
@@ -19,6 +18,7 @@ interface ForgotPasswordFormProps {
 }
 
 export function ForgotPasswordForm({ onBack }: ForgotPasswordFormProps) {
+    const { adapter } = useBackend();
     const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -34,23 +34,11 @@ export function ForgotPasswordForm({ onBack }: ForgotPasswordFormProps) {
         setStatus('loading');
         setErrorMessage(null);
         try {
-            await pb.collection('users').requestPasswordReset(data.email);
+            await adapter.requestPasswordReset(data.email);
             setStatus('success');
-        } catch (err) {
+        } catch (err: any) {
             setStatus('error');
-            // Check for specific PocketBase errors if needed, but for security 
-            // and local-first UX, we primarily want to guide them to the Admin.
-            if (err instanceof ClientResponseError) {
-                // Even if email is not found, PB might return 204 or 404.
-                // We should be careful not to enumerate users, but for a home server, functionality is key.
-                if (err.status === 404) {
-                    setErrorMessage("Email address not found.");
-                } else {
-                    setErrorMessage(err.message || "Failed to send reset email.");
-                }
-            } else {
-                setErrorMessage("An unexpected error occurred.");
-            }
+            setErrorMessage(err.message || "An unexpected error occurred.");
         }
     };
 

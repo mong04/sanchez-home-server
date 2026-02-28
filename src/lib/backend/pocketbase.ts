@@ -3,23 +3,8 @@
 // Most of this code already existed across hooks — this centralizes it.
 
 import PocketBase from 'pocketbase';
-import type { BackendAdapter, User, ExportDump, ImportResult } from './types';
-
-const COLLECTIONS = [
-    'users',
-    'accounts',
-    'transactions',
-    'categories',
-    'budget_months',
-    'budget_allocations',
-    'chores',
-    'chore_assignments',
-    'calendar_events',
-    'shopping_items',
-    'wellness_logs',
-    'infinity_log',
-    'messages',
-] as const;
+import type { BackendAdapter, User, ExportDump, ImportResult, PushPayload } from './types';
+import { COLLECTIONS } from './collections';
 
 export class PocketBaseAdapter implements BackendAdapter {
     private pb: PocketBase;
@@ -34,7 +19,7 @@ export class PocketBaseAdapter implements BackendAdapter {
 
     // ─── Auth ─────────────────────────────────────────────────────
     async signIn(email: string, password: string) {
-        const result = await this.pb.collection('users').authWithPassword(email, password);
+        const result = await this.pb.collection(COLLECTIONS.USERS).authWithPassword(email, password);
         return {
             user: this.mapUser(result.record),
             token: this.pb.authStore.token,
@@ -47,7 +32,11 @@ export class PocketBaseAdapter implements BackendAdapter {
 
     getCurrentUser(): User | null {
         if (!this.pb.authStore.isValid) return null;
-        return this.mapUser(this.pb.authStore.record);
+        return this.mapUser(this.pb.authStore.model);
+    }
+
+    getToken(): string | null {
+        return this.pb.authStore.token;
     }
 
     onAuthStateChange(callback: (user: User | null) => void) {
@@ -132,7 +121,7 @@ export class PocketBaseAdapter implements BackendAdapter {
             collections: {},
             files: {},
         };
-        for (const coll of COLLECTIONS) {
+        for (const coll of Object.values(COLLECTIONS)) {
             try {
                 const records = await this.pb.collection(coll).getFullList();
                 dump.collections[coll] = records;
@@ -167,9 +156,33 @@ export class PocketBaseAdapter implements BackendAdapter {
         return {
             id: record.id,
             email: record.email,
+            username: record.username,
             name: record.name ?? record.username ?? '',
             avatar: record.avatar,
+            partykit_id: record.partykit_id,
             role: record.role ?? 'member',
         };
+    }
+
+    async requestPasswordReset(email: string): Promise<void> {
+        await this.pb.collection(COLLECTIONS.USERS).requestPasswordReset(email);
+    }
+
+    async sendPush(userId: string, payload: PushPayload): Promise<void> {
+        // Point to the signaling/push sidecar on port 4444
+        const pushServerUrl = this.pb.baseUrl.replace(':8090', ':4444');
+        console.log(`📡 [Push] Sending to ${userId} via ${pushServerUrl}`, payload);
+        const response = await fetch(`${pushServerUrl}/api/sfos/send-push`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': this.pb.authStore.token
+            },
+            body: JSON.stringify({ userId, payload })
+        });
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(`Failed to send push: ${err.message || response.statusText}`);
+        }
     }
 }

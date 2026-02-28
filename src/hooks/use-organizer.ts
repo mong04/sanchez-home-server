@@ -2,9 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { chores, bills, shoppingList } from '../lib/yjs-provider';
 import type { Chore, Bill, ShoppingItem } from '../types/schema';
 import { v4 as uuidv4 } from 'uuid';
+import { useBackend } from '../providers/BackendProvider';
 
 export function useChores() {
     const [items, setItems] = useState<Chore[]>(chores.toArray());
+    const { adapter } = useBackend();
 
     useEffect(() => {
         const observer = () => setItems(chores.toArray());
@@ -55,9 +57,18 @@ export function useChores() {
 
                 chores.delete(index, 1);
                 chores.insert(index, [updatedChore]);
+
+                // Notify the next person using their UNIQUE ID
+                const nextAssigneeId = updatedChore.assignees[nextTurnIndex];
+                adapter.sendPush(nextAssigneeId, {
+                    title: "It's your turn! 🧹",
+                    body: `Chore "${updatedChore.title}" is now assigned to you.`,
+                    url: "/organizer/chores",
+                    icon: "/pwa-512x512.svg"
+                }).catch(err => console.error('Failed to send turn rotation push:', err));
             }
         }
-    }, []);
+    }, [adapter]);
 
     const deleteChore = useCallback((id: string) => {
         const index = chores.toArray().findIndex(c => c.id === id);
@@ -67,14 +78,10 @@ export function useChores() {
     }, []);
 
     const getMyActiveChores = useCallback((userId: string) => {
-        // For now, simple matching logic. In a real app, userId would be strictly validated.
-        // We look for chores where assignees[currentTurnIndex] matches the userId (or partial match for Dad/Mom etc)
-        // Since the mock CommandCenter uses "dad-uuid", we can implement a flexible check or specific logic.
         return items.filter(chore => {
             if (!chore.assignees || chore.assignees.length === 0) return false;
-            const currentAssignee = chore.assignees[chore.currentTurnIndex % chore.assignees.length];
-            // Simple strict match or partial for the mock
-            return currentAssignee === userId || currentAssignee.toLowerCase().includes('dad');
+            const currentAssigneeId = chore.assignees[chore.currentTurnIndex % chore.assignees.length];
+            return currentAssigneeId === userId;
         });
     }, [items]);
 
@@ -100,6 +107,7 @@ export function useChores() {
 
 export function useBills() {
     const [items, setItems] = useState<Bill[]>(bills.toArray());
+    const { adapter } = useBackend();
 
     useEffect(() => {
         const observer = () => setItems(bills.toArray());
@@ -117,7 +125,15 @@ export function useBills() {
             category
         };
         bills.push([newBill]);
-    }, []);
+
+        // Notify family of new bill
+        adapter.sendPush('family', { // 'family' could be a special alias handled by the server
+            title: "New Bill Alert 💸",
+            body: `${name} is due on ${new Date(dueDate).toLocaleDateString()}.`,
+            url: "/organizer/bills",
+            icon: "/pwa-512x512.svg"
+        }).catch(console.error);
+    }, [adapter]);
 
     const togglePaid = useCallback((id: string) => {
         const index = bills.toArray().findIndex(b => b.id === id);

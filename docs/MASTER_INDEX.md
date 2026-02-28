@@ -15,6 +15,7 @@
 - **docs/ARCHITECTURE_DECISION.md** — Hybrid PartyKit + PocketBase strategy
 - **docs/PHASE_11_5_BACKEND_ABSTRACTION.md** — Backend Abstraction & Migration Wizard blueprint (Phase 11.5)
 - **docs/DEPLOY_PARTYKIT.md** — Current PartyKit deployment (Vite/React app)
+- **signaling.js** — temporary raw access (refactor planned)
 
 ## Finance Module (Active Focus – Phase 11)
 **Always read in this order:**

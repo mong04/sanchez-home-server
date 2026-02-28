@@ -16,10 +16,17 @@ function createAdapter(config: BackendConfig): BackendAdapter {
     if (config.type === 'pocketbase') {
         return new PocketBaseAdapter(config.url, config.token);
     }
-    return new SupabaseAdapter(config.url, config.anonKey ?? '', config.token);
+    return new SupabaseAdapter(config.url, config.publishableKey ?? '', config.token);
 }
 
 function getStoredConfig(): BackendConfig {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('reset_backend')) {
+        localStorage.removeItem('sfos_backend_config');
+        // Clean up URL
+        window.history.replaceState({}, '', window.location.pathname);
+    }
+
     const stored = localStorage.getItem('sfos_backend_config');
     if (stored) {
         try {
@@ -32,24 +39,34 @@ function getStoredConfig(): BackendConfig {
         }
     }
 
-    // TEMPORARY DEFAULT: PocketBase (so we can keep developing while we set up Supabase)
-    // We will flip this back to 'supabase' once the test project is ready
-    console.warn('⚠️  SFOS Backend: No stored config found. Defaulting to PocketBase for now.');
+    // Default: PocketBase (stable local dev)
     return {
         type: 'pocketbase',
-        url: typeof import.meta.env !== 'undefined' ? (import.meta as any).env.VITE_POCKETBASE_URL ?? 'http://127.0.0.1:8090' : 'http://127.0.0.1:8090',
-        // token will be handled by auth flow
+        url: import.meta.env.VITE_POCKETBASE_URL ?? 'http://127.0.0.1:8090',
     };
 }
 
+// Global reference for non-hook access (e.g. loaders).
+// This MUST be initialized eagerly so `react-router` loaders don't see a null adapter on page refresh!
+let globalAdapter: BackendAdapter = createAdapter(getStoredConfig());
+export const getBackendAdapter = () => globalAdapter;
+
 export function BackendProvider({ children }: { children: ReactNode }) {
     const [config, setConfig] = useState<BackendConfig>(getStoredConfig);
-    const [adapter, setAdapter] = useState<BackendAdapter>(() => createAdapter(config));
+    const [adapter, setAdapter] = useState<BackendAdapter>(globalAdapter);
 
     useEffect(() => {
-        const newAdapter = createAdapter(config);
-        setAdapter(newAdapter);
-        localStorage.setItem('sfos_backend_config', JSON.stringify(config));
+        // Only recreate the adapter if the config actually changes (e.g. switchBackend is called)
+        // Otherwise, we end up dropping the first initialized connection instance.
+        const cachedConfig = localStorage.getItem('sfos_backend_config');
+        const isDifferent = cachedConfig !== JSON.stringify(config);
+
+        if (isDifferent) {
+            const newAdapter = createAdapter(config);
+            setAdapter(newAdapter);
+            globalAdapter = newAdapter;
+            localStorage.setItem('sfos_backend_config', JSON.stringify(config));
+        }
     }, [config]);
 
     const switchBackend = async (newConfig: BackendConfig) => {

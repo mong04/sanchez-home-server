@@ -13,6 +13,7 @@ interface ModalProps {
     description?: string;
     footer?: React.ReactNode;
     className?: string;
+    showHeader?: boolean;
 }
 
 export function Modal({
@@ -23,6 +24,7 @@ export function Modal({
     description,
     footer,
     className,
+    showHeader = true,
 }: ModalProps) {
     const overlayRef = useRef<HTMLDivElement>(null);
 
@@ -90,25 +92,27 @@ export function Modal({
                         </div>
 
                         {/* Header */}
-                        <div className="flex items-center justify-between border-b border-border px-6 py-4">
-                            <div>
-                                <h3 id="modal-title" className="text-xl font-semibold text-card-foreground">
-                                    {title}
-                                </h3>
-                                {description && (
-                                    <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-                                )}
+                        {showHeader && (
+                            <div className="flex items-center justify-between border-b border-border px-6 py-4">
+                                <div>
+                                    <h3 id="modal-title" className="text-xl font-semibold text-card-foreground">
+                                        {title}
+                                    </h3>
+                                    {description && (
+                                        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+                                    )}
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={onClose}
+                                    className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+                                    aria-label="Close"
+                                >
+                                    <X className="h-4 w-4" />
+                                </Button>
                             </div>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={onClose}
-                                className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
-                                aria-label="Close"
-                            >
-                                <X className="h-4 w-4" />
-                            </Button>
-                        </div>
+                        )}
 
                         {/* Body */}
                         <div className="flex-1 min-h-0 px-6 py-5 text-card-foreground">

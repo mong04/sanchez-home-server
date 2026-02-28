@@ -1,6 +1,6 @@
 import { Modal } from './Modal';
 import { cn } from '../../lib/utils';
-import { useEffect, useState, useRef, useCallback, useMemo, useLayoutEffect } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo, startTransition } from 'react';
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
@@ -15,8 +15,7 @@ interface EmojiPickerModalProps {
 const RECENT_KEY = 'recent-emojis';
 const MAX_RECENT = 12;
 
-// CATEGORIES and EMOJI_INFO are imported from '../../lib/emojis'
-
+// ─── Performance-optimized EmojiButton ───
 const EmojiButton = React.memo(({ emoji, onSelect, onHover }: { emoji: string; onSelect: (emoji: string) => void; onHover: (emoji: string | null) => void }) => (
     <button
         onClick={() => onSelect(emoji)}
@@ -24,8 +23,9 @@ const EmojiButton = React.memo(({ emoji, onSelect, onHover }: { emoji: string; o
         onMouseLeave={() => onHover(null)}
         onPointerDown={() => onHover(emoji)}
         className={cn(
-            "flex items-center justify-center text-3xl rounded-xl transition-all active:scale-95",
-            "hover:bg-accent hover:scale-110",
+            "flex items-center justify-center text-3xl rounded-xl",
+            "active:scale-95 transition-transform duration-75",
+            "hover:bg-accent",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
             "h-14 w-14 sm:h-12 sm:w-12 touch-manipulation"
         )}
@@ -37,7 +37,39 @@ const EmojiButton = React.memo(({ emoji, onSelect, onHover }: { emoji: string; o
 ));
 EmojiButton.displayName = 'EmojiButton';
 
-export function EmojiPickerModal({ isOpen, onClose, onEmojiSelect }: EmojiPickerModalProps) {
+// ─── Category section ───
+const CategorySection = React.memo(function CategorySection({
+    cat,
+    handleSelect,
+    handlePreview,
+    categoryRefs,
+}: {
+    cat: typeof CATEGORIES[number];
+    handleSelect: (emoji: string) => void;
+    handlePreview: (emoji: string | null) => void;
+    categoryRefs: React.MutableRefObject<Record<string, HTMLDivElement | null>>;
+}) {
+    return (
+        <div
+            key={cat.id}
+            id={cat.id}
+            ref={el => { categoryRefs.current[cat.id] = el; }}
+            className="scroll-mt-4"
+            style={{ contentVisibility: 'auto', containIntrinsicSize: '0 200px' }}
+        >
+            <h3 className="text-xs font-semibold tracking-widest text-muted-foreground mb-3 px-1 flex items-center gap-2 sticky top-0 bg-card/90 backdrop-blur-sm z-10 py-2">
+                <span className="opacity-70">{cat.icon}</span> {cat.title.toUpperCase()}
+            </h3>
+            <div className="grid grid-cols-5 sm:grid-cols-6 gap-2 px-1">
+                {cat.emojis.map(emoji => (
+                    <EmojiButton key={`${cat.id}-${emoji}`} emoji={emoji} onSelect={handleSelect} onHover={handlePreview} />
+                ))}
+            </div>
+        </div>
+    );
+});
+
+export default function EmojiPickerModal({ isOpen, onClose, onEmojiSelect }: EmojiPickerModalProps) {
     const [search, setSearch] = useState('');
     const [recent, setRecent] = useState<string[]>([]);
     const [preview, setPreview] = useState<string | null>(null);
@@ -56,7 +88,7 @@ export function EmojiPickerModal({ isOpen, onClose, onEmojiSelect }: EmojiPicker
         }
     };
 
-    useLayoutEffect(() => {
+    useEffect(() => {
         if (search || !isOpen || !hasMounted) return;
 
         const observer = new IntersectionObserver(
@@ -80,12 +112,13 @@ export function EmojiPickerModal({ isOpen, onClose, onEmojiSelect }: EmojiPicker
             const saved = localStorage.getItem(RECENT_KEY);
             if (saved) setRecent(JSON.parse(saved));
 
-            const timer = setTimeout(() => {
+            // Defer mount animation so the modal shell appears instantly
+            const timer = requestAnimationFrame(() => {
                 setHasMounted(true);
                 searchRef.current?.focus();
-            }, 120);
+            });
 
-            return () => clearTimeout(timer);
+            return () => cancelAnimationFrame(timer);
         } else {
             setSearch('');
             setPreview(null);
@@ -105,11 +138,14 @@ export function EmojiPickerModal({ isOpen, onClose, onEmojiSelect }: EmojiPicker
         onClose();
     }, [addToRecent, onEmojiSelect, onClose]);
 
-    const handlePreview = useCallback((emoji: string | null) => setPreview(emoji), []);
+    const handlePreview = useCallback((emoji: string | null) => {
+        // Use startTransition so hover previews don't block emoji grid rendering
+        startTransition(() => setPreview(emoji));
+    }, []);
 
     const filteredEmojis = useMemo(() => {
         if (!search.trim()) return [];
-        return searchEmojis(search, 48); // More results for the full picker
+        return searchEmojis(search, 48);
     }, [search]);
 
     return (
@@ -163,13 +199,14 @@ export function EmojiPickerModal({ isOpen, onClose, onEmojiSelect }: EmojiPicker
                     </div>
                 </div>
 
-                <motion.div
+                <div
                     ref={scrollContainerRef}
-                    initial={false}
-                    animate={hasMounted ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
-                    transition={{ duration: 0.25, ease: 'easeOut' }}
                     className="relative flex-1 overflow-hidden"
-                    style={{ willChange: 'transform, opacity' }}
+                    style={{
+                        // Skip Framer entrance animation — just show immediately
+                        opacity: hasMounted ? 1 : 0,
+                        transition: 'opacity 0.15s ease-out',
+                    }}
                 >
                     <div className="custom-scroll h-full overflow-y-auto pr-2 pb-20 space-y-6">
                         {search ? (
@@ -196,21 +233,13 @@ export function EmojiPickerModal({ isOpen, onClose, onEmojiSelect }: EmojiPicker
                                 )}
 
                                 {CATEGORIES.map(cat => (
-                                    <div
+                                    <CategorySection
                                         key={cat.id}
-                                        id={cat.id}
-                                        ref={el => { categoryRefs.current[cat.id] = el; }}
-                                        className="scroll-mt-4"
-                                    >
-                                        <h3 className="text-xs font-semibold tracking-widest text-muted-foreground mb-3 px-1 flex items-center gap-2 sticky top-0 bg-card/90 backdrop-blur-sm z-10 py-2">
-                                            <span className="opacity-70">{cat.icon}</span> {cat.title.toUpperCase()}
-                                        </h3>
-                                        <div className="grid grid-cols-5 sm:grid-cols-6 gap-2 px-1">
-                                            {cat.emojis.map(emoji => (
-                                                <EmojiButton key={`${cat.id}-${emoji}`} emoji={emoji} onSelect={handleSelect} onHover={handlePreview} />
-                                            ))}
-                                        </div>
-                                    </div>
+                                        cat={cat}
+                                        handleSelect={handleSelect}
+                                        handlePreview={handlePreview}
+                                        categoryRefs={categoryRefs}
+                                    />
                                 ))}
                             </>
                         )}
@@ -224,7 +253,7 @@ export function EmojiPickerModal({ isOpen, onClose, onEmojiSelect }: EmojiPicker
                                 exit={{ opacity: 0, y: 10 }}
                                 className="absolute bottom-0 left-0 right-0 bg-card/95 backdrop-blur-md border-t border-border p-3 flex items-center gap-4 z-40 rounded-b-2xl shadow-[0_-10px_30px_-15px_rgba(0,0,0,0.3)]"
                             >
-                                <div className="text-5xl flex-shrink-0 drop-shadow-sm transition-transform hover:scale-110">{preview}</div>
+                                <div className="text-5xl flex-shrink-0 drop-shadow-sm">{preview}</div>
                                 <div className="min-w-0">
                                     <div className="font-bold text-lg leading-tight truncate">
                                         {EMOJI_INFO[preview]?.name || 'Unknown'}
@@ -234,7 +263,7 @@ export function EmojiPickerModal({ isOpen, onClose, onEmojiSelect }: EmojiPicker
                             </motion.div>
                         )}
                     </AnimatePresence>
-                </motion.div>
+                </div>
             </div>
         </Modal>
     );

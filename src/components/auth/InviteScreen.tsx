@@ -7,7 +7,7 @@ import { env } from '../../config/env';
 import { ForgotPasswordForm } from './ForgotPasswordForm';
 
 export function InviteScreen() {
-    const { loginWithPocketBase } = useAuth();
+    const { login } = useAuth();
     const navigate = useNavigate();
     // Default to 'account' mode for Zero Trust
     const [view, setView] = useState<'login' | 'forgot-password'>('login');
@@ -64,7 +64,7 @@ export function InviteScreen() {
                 setError(true);
             }
         } else {
-            const success = await loginWithPocketBase(email, password);
+            const success = await login(email, password);
             if (success) {
                 navigate('/');
             } else {
@@ -140,17 +140,17 @@ export function InviteScreen() {
             <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans text-slate-100">
                 <div className="w-full max-w-md space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
                     <div className="text-center space-y-2">
-                         <div className="inline-flex items-center justify-center p-3 bg-indigo-500/10 rounded-full ring-1 ring-indigo-500/30 mb-4">
+                        <div className="inline-flex items-center justify-center p-3 bg-indigo-500/10 rounded-full ring-1 ring-indigo-500/30 mb-4">
                             <Lock className="w-8 h-8 text-indigo-400" />
                         </div>
                         <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-indigo-200 via-white to-indigo-200 bg-clip-text text-transparent">
                             Account Recovery
                         </h1>
                     </div>
-                     <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-2xl relative overflow-hidden">
+                    <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-2xl relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-50" />
                         <ForgotPasswordForm onBack={() => setView('login')} />
-                     </div>
+                    </div>
                 </div>
             </div>
         )
@@ -211,7 +211,7 @@ export function InviteScreen() {
                             </div>
                             <div className="space-y-2">
                                 <div className='flex justify-between items-center'>
-                                     <label htmlFor="password" className="text-xs font-medium uppercase tracking-wider text-slate-500 ml-1">
+                                    <label htmlFor="password" className="text-xs font-medium uppercase tracking-wider text-slate-500 ml-1">
                                         Password
                                     </label>
                                     <button
@@ -222,7 +222,7 @@ export function InviteScreen() {
                                         Forgot Password?
                                     </button>
                                 </div>
-                               
+
                                 <div className="relative group">
                                     <Key className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-indigo-400 transition-colors" />
                                     <input

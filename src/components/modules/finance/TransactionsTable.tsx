@@ -19,7 +19,7 @@ import {
     Edit2,
     Upload
 } from 'lucide-react';
-import { cn } from '../../../lib/utils';
+import { cn, formatCurrency } from '../../../lib/utils';
 import { Button } from '../../common/Button';
 import { Modal } from '../../common/Modal';
 import type { TransactionRecord } from '../../../types/pocketbase';
@@ -30,14 +30,6 @@ interface TransactionsTableProps {
     onImportCSV?: () => void;
     onEditTransaction?: (transaction: TransactionRecord) => void;
 }
-
-const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: 2,
-    }).format(Math.abs(amount));
-};
 
 export const TransactionsTable: React.FC<TransactionsTableProps> = ({ accountId, onImportCSV, onEditTransaction }) => {
     const { data: transactions, isLoading } = useTransactions({ accountId });
@@ -139,7 +131,7 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({ accountId,
                                                     className="flex items-center justify-center w-full min-h-[44px] md:min-h-0 focus:outline-none focus:ring-2 focus:ring-primary/50 rounded-full transition-transform active:scale-90"
                                                 >
                                                     {tx.cleared ? (
-                                                        <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                                                        <CheckCircle2 className="w-5 h-5 text-success" />
                                                     ) : (
                                                         <Circle className="w-5 h-5 text-muted-foreground/30 group-hover:text-muted-foreground/60" />
                                                     )}
@@ -165,7 +157,7 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({ accountId,
                                             <td className="px-6 py-4 text-right whitespace-nowrap">
                                                 <div className={cn(
                                                     "font-medium flex items-center justify-end gap-1.5",
-                                                    (tx.amount || 0) < 0 ? "text-foreground" : "text-emerald-500"
+                                                    (tx.amount || 0) < 0 ? "text-foreground" : "text-success"
                                                 )}>
                                                     {(tx.amount || 0) < 0 ? <ArrowDownRight className="w-3.5 h-3.5 opacity-70" /> : <ArrowUpRight className="w-3.5 h-3.5 opacity-70" />}
                                                     {formatCurrency(tx.amount || 0)}
@@ -226,7 +218,7 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({ accountId,
                                             className="flex items-center justify-center w-11 h-11 focus:outline-none focus:ring-2 focus:ring-primary/50 rounded-full transition-transform active:scale-90"
                                         >
                                             {tx.cleared ? (
-                                                <CheckCircle2 className="w-6 h-6 text-emerald-500" />
+                                                <CheckCircle2 className="w-6 h-6 text-success" />
                                             ) : (
                                                 <Circle className="w-6 h-6 text-muted-foreground/30" />
                                             )}
@@ -246,7 +238,7 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({ accountId,
                                     <div className="flex flex-col items-end flex-shrink-0 gap-2">
                                         <div className={cn(
                                             "font-semibold text-sm",
-                                            (tx.amount || 0) < 0 ? "text-foreground" : "text-emerald-500"
+                                            (tx.amount || 0) < 0 ? "text-foreground" : "text-success"
                                         )}>
                                             {(tx.amount || 0) < 0 ? <ArrowDownRight className="inline w-3 h-3 mr-0.5 opacity-70" /> : <ArrowUpRight className="inline w-3 h-3 mr-0.5 opacity-70" />}
                                             {formatCurrency(tx.amount || 0)}
@@ -304,7 +296,7 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({ accountId,
                             <span className="font-semibold text-foreground">{transactionToDelete.payee}</span>
                             <span className={cn(
                                 "font-bold",
-                                (transactionToDelete.amount || 0) < 0 ? "text-foreground" : "text-emerald-500"
+                                (transactionToDelete.amount || 0) < 0 ? "text-foreground" : "text-success"
                             )}>
                                 {formatCurrency(transactionToDelete.amount || 0)}
                             </span>

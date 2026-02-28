@@ -6,18 +6,22 @@ import { useInfinityLog } from '../../hooks/use-infinity-log';
 import { MetricCard } from '../ui/dashboard/MetricCard';
 import { ActivityFeed } from '../ui/dashboard/ActivityFeed';
 import { AddUserDialog } from '../admin/AddUserDialog';
-import { ShieldAlert, Users, CheckSquare, Receipt, Activity, Wifi } from 'lucide-react';
+import { ShieldAlert, Users, CheckSquare, Activity, Wifi, Server, ArrowRight } from 'lucide-react';
+import { Button } from '../common/Button';
 import { provider } from '../../lib/yjs-provider';
+import { cn } from '../../lib/utils';
 
 import { UserManagement } from '../admin/UserManagement';
+import { MigrationWizard } from '../admin/MigrationWizard';
 
 export function AdminDashboard() {
     const { user, profiles } = useAuth();
     const navigate = useNavigate();
     const { onlineUsers, activeChoresCount, totalXP, systemStatus, userCount } = useAdminStats();
     const { items: logItems } = useInfinityLog();
-    const [activeTab, setActiveTab] = useState<'overview' | 'users'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'backend'>('overview');
     const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+    const [isMigrationOpen, setIsMigrationOpen] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
 
     const handleForceSync = () => {
@@ -29,8 +33,6 @@ export function AdminDashboard() {
             setTimeout(() => setIsSyncing(false), 1000); // Visual feedback delay
         }, 500);
     };
-
-
 
     if (user?.role !== 'admin' && user?.role !== 'parent') {
         return (
@@ -65,40 +67,51 @@ export function AdminDashboard() {
             >
                 {/* Sliding Background */}
                 <div
-                    className={`absolute top-1 bottom-1 rounded-lg bg-background shadow-sm transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${activeTab === 'overview' ? 'left-1 w-[calc(50%-4px)]' : 'left-[50%] w-[calc(50%-4px)]'
-                        }`}
+                    className={cn(
+                        "absolute top-1 bottom-1 rounded-lg bg-background shadow-sm transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] w-[calc(33.33%-4px)]",
+                        activeTab === 'overview' ? 'left-1' :
+                            activeTab === 'users' ? 'left-[33.33%]' :
+                                'left-[66.66%]'
+                    )}
                     aria-hidden="true"
                 />
 
                 <button
                     role="tab"
                     aria-selected={activeTab === 'overview'}
-                    aria-controls="overview-panel"
-                    id="overview-tab"
                     onClick={() => setActiveTab('overview')}
-                    className={`relative z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-200 ${activeTab === 'overview'
-                        ? 'text-foreground'
-                        : 'text-muted-foreground hover:text-foreground'
-                        }`}
+                    className={cn(
+                        "relative z-10 w-1/3 py-2 text-sm font-semibold transition-colors duration-200",
+                        activeTab === 'overview' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
+                    )}
                 >
-                    System Overview
+                    Overview
                 </button>
                 <button
                     role="tab"
                     aria-selected={activeTab === 'users'}
-                    aria-controls="users-panel"
-                    id="users-tab"
                     onClick={() => setActiveTab('users')}
-                    className={`relative z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-200 ${activeTab === 'users'
-                        ? 'text-foreground'
-                        : 'text-muted-foreground hover:text-foreground'
-                        }`}
+                    className={cn(
+                        "relative z-10 w-1/3 py-2 text-sm font-semibold transition-colors duration-200",
+                        activeTab === 'users' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
+                    )}
                 >
-                    User Management
+                    Users
+                </button>
+                <button
+                    role="tab"
+                    aria-selected={activeTab === 'backend'}
+                    onClick={() => setActiveTab('backend')}
+                    className={cn(
+                        "relative z-10 w-1/3 py-2 text-sm font-semibold transition-colors duration-200",
+                        activeTab === 'backend' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
+                    )}
+                >
+                    Backend
                 </button>
             </div>
 
-            {activeTab === 'overview' ? (
+            {activeTab === 'overview' && (
                 /* System Overview Grid */
                 <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -163,6 +176,15 @@ export function AdminDashboard() {
                                         Add User
                                     </button>
                                     <button
+                                        onClick={() => setIsMigrationOpen(true)}
+                                        className="p-3 md:p-4 text-xs md:text-sm font-medium bg-muted/40 hover:bg-muted rounded-xl border border-border/50 transition-colors flex flex-col items-center gap-2 md:gap-3 text-center focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden min-h-[72px] md:min-h-[88px] justify-center"
+                                    >
+                                        <div className="p-2 rounded-full bg-emerald-500/10 text-emerald-500">
+                                            <Server className="w-5 h-5" />
+                                        </div>
+                                        Migration
+                                    </button>
+                                    <button
                                         onClick={handleForceSync}
                                         disabled={isSyncing}
                                         className="p-3 md:p-4 text-xs md:text-sm font-medium bg-muted/40 hover:bg-muted rounded-xl border border-border/50 transition-colors flex flex-col items-center gap-2 md:gap-3 text-center focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden min-h-[72px] md:min-h-[88px] justify-center disabled:opacity-50"
@@ -173,40 +195,56 @@ export function AdminDashboard() {
                                         {isSyncing ? 'Syncing...' : 'Force Sync'}
                                     </button>
                                     <button
-                                        onClick={() => alert("Bill Scanning coming soon!")}
-                                        className="p-3 md:p-4 text-xs md:text-sm font-medium bg-muted/40 hover:bg-muted rounded-xl border border-border/50 transition-colors flex flex-col items-center gap-2 md:gap-3 text-center focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden min-h-[72px] md:min-h-[88px] justify-center"
-                                    >
-                                        <div className="p-2 rounded-full bg-warning/10 text-warning">
-                                            <Receipt className="w-5 h-5" />
-                                        </div>
-                                        Scan Bill
-                                    </button>
-                                    <button
                                         onClick={() => navigate('/chores')}
                                         className="p-3 md:p-4 text-xs md:text-sm font-medium bg-muted/40 hover:bg-muted rounded-xl border border-border/50 transition-colors flex flex-col items-center gap-2 md:gap-3 text-center focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden min-h-[72px] md:min-h-[88px] justify-center"
                                     >
                                         <div className="p-2 rounded-full bg-success/10 text-success">
                                             <CheckSquare className="w-5 h-5" />
                                         </div>
-                                        Add Chore
+                                        Chores
                                     </button>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            ) : (
+            )}
+
+            {activeTab === 'users' && (
                 <div className="animate-in fade-in slide-in-from-right-4 duration-300">
                     <UserManagement />
+                </div>
+            )}
+
+            {activeTab === 'backend' && (
+                <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                    <div className="bg-card rounded-2xl border border-border p-8 text-center space-y-6">
+                        <div className="p-4 bg-primary/10 rounded-full inline-block">
+                            <Server className="w-12 h-12 text-primary" />
+                        </div>
+                        <div className="space-y-2">
+                            <h2 className="text-2xl font-bold">Data Sovereignty</h2>
+                            <p className="text-muted-foreground max-w-md mx-auto">
+                                Your family data is currently on the cloud. Move it to a local server to gain full control and offline-first capabilities.
+                            </p>
+                        </div>
+                        <Button size="lg" className="h-14 px-8" onClick={() => setIsMigrationOpen(true)}>
+                            Switch to Self-Hosted
+                            <ArrowRight className="ml-2 w-5 h-5" />
+                        </Button>
+                    </div>
                 </div>
             )}
 
             <AddUserDialog
                 isOpen={isAddUserOpen}
                 onClose={() => setIsAddUserOpen(false)}
-                onUserAdded={() => {
-                    // Optional: refresh logic if needed, but Yjs/PartyKit is real-time
-                }}
+                onUserAdded={() => { }}
+            />
+
+            <MigrationWizard
+                isOpen={isMigrationOpen}
+                onClose={() => setIsMigrationOpen(false)}
             />
 
             {/* Technical Health Footer */}

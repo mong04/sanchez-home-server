@@ -1,14 +1,13 @@
 import * as Y from 'yjs';
 import { IndexeddbPersistence } from 'y-indexeddb';
 import YPartyKitProvider from "y-partykit/provider";
+import Cookies from 'js-cookie';
 import { SYNC_CONFIG } from '../config/sync';
-import { pb } from './pocketbase';
 import type { InfinityLogItem, Chore, Bill, ShoppingItem, CalendarEvent, WellnessEntry, Message, User } from '../types/schema';
 
-// 1. Create the shared document
+// ─── Document & Persistence ──────────────────────────────────────
 export const doc = new Y.Doc();
 
-// 2. Configure persistence (Offline First)
 export const persistence = typeof window !== 'undefined' && typeof indexedDB !== 'undefined'
     ? new IndexeddbPersistence(SYNC_CONFIG.ROOM_NAME, doc)
     : null;
@@ -19,7 +18,7 @@ if (persistence) {
     });
 }
 
-// 3. Provider management - mutable reference for token updates
+// ─── Provider Management ─────────────────────────────────────────
 let currentProvider: YPartyKitProvider | null = null;
 
 function createProvider(token: string): YPartyKitProvider {
@@ -56,7 +55,7 @@ function createProvider(token: string): YPartyKitProvider {
 
 // Initialize provider with stored token (if any)
 if (typeof window !== 'undefined') {
-    const storedToken = pb.authStore.token || '';
+    const storedToken = Cookies.get('auth_token') || '';
     console.log('🔌 [Yjs] Initial provider config:', {
         host: SYNC_CONFIG.PARTYKIT_HOST,
         room: SYNC_CONFIG.ROOM_NAME,

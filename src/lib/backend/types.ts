@@ -7,7 +7,7 @@ export type BackendType = 'pocketbase' | 'supabase';
 export interface BackendConfig {
     type: BackendType;
     url: string;
-    anonKey?: string; // Supabase only
+    publishableKey?: string; // Supabase only
     token?: string;
 }
 
@@ -15,9 +15,11 @@ export interface BackendConfig {
 export interface User {
     id: string;
     email: string;
+    username?: string;
     name: string;
     avatar?: string;
-    role: 'admin' | 'member';
+    partykit_id?: string;
+    role: 'admin' | 'parent' | 'kid' | 'member';
 }
 
 export interface BackendAdapter {
@@ -25,7 +27,9 @@ export interface BackendAdapter {
     signIn(email: string, password: string): Promise<{ user: User; token: string }>;
     signOut(): Promise<void>;
     getCurrentUser(): User | null;
+    getToken(): string | null;
     onAuthStateChange(callback: (user: User | null) => void): () => void;
+    requestPasswordReset(email: string): Promise<void>;
 
     // ─── CRUD (generic, type-safe) ──────────────────────────────────
     getOne<T>(collection: string, id: string, options?: {
@@ -74,6 +78,17 @@ export interface BackendAdapter {
     // ─── Migration Helpers ──────────────────────────────────────────
     exportAll(): Promise<ExportDump>;
     importAll(dump: ExportDump): Promise<ImportResult>;
+
+    // ─── Notifications ──────────────────────────────────────────────
+    sendPush(userId: string, payload: PushPayload): Promise<void>;
+}
+
+export interface PushPayload {
+    title: string;
+    body: string;
+    url?: string;
+    icon?: string;
+    data?: any;
 }
 
 export interface ExportDump {

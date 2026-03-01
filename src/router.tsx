@@ -37,10 +37,13 @@ const publicLoader = async () => {
     return null;
 };
 
+import { OfflineFallback } from './components/OfflineFallback';
+
 export const router = createBrowserRouter([
     {
         path: '/',
         element: <App />,
+        errorElement: <OfflineFallback />,
         children: [
             {
                 path: 'login',

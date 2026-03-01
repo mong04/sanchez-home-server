@@ -4,7 +4,7 @@ import { Shield, Baby, CheckCircle2, Camera } from 'lucide-react';
 import { AvatarEditor } from '../profile/AvatarEditor';
 
 export function ProfileSetup() {
-    const { createProfile } = useAuth();
+    const { createProfile, user: authUser } = useAuth();
     const [name, setName] = useState('');
     const [role, setRole] = useState<'parent' | 'kid' | 'admin'>('kid');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,7 +42,8 @@ export function ProfileSetup() {
                 level: 1,
                 streaks: { current: 0, max: 0, lastActivityDate: 0 },
                 badges: [],
-                activityLog: {}
+                activityLog: {},
+                email: authUser?.email || '',
             });
         } catch (error) {
             console.error(error);

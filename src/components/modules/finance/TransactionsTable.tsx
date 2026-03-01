@@ -3,12 +3,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     useTransactions,
     useDeleteTransaction,
-    useToggleCleared
+    useToggleCleared,
+    useCreateRecurringTransaction
 } from '../../../hooks/useFinanceData';
 import {
     format,
-    parseISO
+    parseISO,
+    addMonths
 } from 'date-fns';
+import confetti from 'canvas-confetti';
 import {
     CheckCircle2,
     Circle,
@@ -17,7 +20,8 @@ import {
     Search,
     Trash2,
     Edit2,
-    Upload
+    Upload,
+    Repeat
 } from 'lucide-react';
 import { cn, formatCurrency } from '../../../lib/utils';
 import { Button } from '../../common/Button';
@@ -38,6 +42,40 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({ accountId,
     const [searchTerm, setSearchTerm] = useState('');
     const [editingTransaction, setEditingTransaction] = useState<TransactionRecord | null>(null);
     const [transactionToDelete, setTransactionToDelete] = useState<TransactionRecord | null>(null);
+
+    const createTemplate = useCreateRecurringTransaction();
+    const [isCreatingTemplate, setIsCreatingTemplate] = useState<string | null>(null);
+
+    const handleCreateTemplate = async (tx: TransactionRecord) => {
+        if (isCreatingTemplate) return;
+        setIsCreatingTemplate(tx.id);
+
+        try {
+            await createTemplate.mutateAsync({
+                templateTransactionId: tx.id,
+                frequency: 'monthly',
+                nextDate: addMonths(new Date(), 1).toISOString(),
+                autoApply: false,
+            });
+
+            // Trigger Confetti
+            const end = Date.now() + 1.0 * 1000;
+            const colors = ['#10b981', '#3b82f6'];
+            (function frame() {
+                confetti({
+                    particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, colors
+                });
+                confetti({
+                    particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors
+                });
+                if (Date.now() < end) requestAnimationFrame(frame);
+            }());
+        } catch (e) {
+            console.error("Failed to create template", e);
+        } finally {
+            setIsCreatingTemplate(null);
+        }
+    };
 
     const handleEdit = (tx: TransactionRecord) => {
         if (onEditTransaction) {
@@ -169,6 +207,15 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({ accountId,
                                                         variant="ghost"
                                                         size="icon"
                                                         className="h-11 w-11 lg:h-8 lg:w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
+                                                        onClick={() => handleCreateTemplate(tx)}
+                                                        disabled={isCreatingTemplate === tx.id}
+                                                    >
+                                                        <Repeat className={cn("w-4 h-4 lg:w-4 lg:h-4", isCreatingTemplate === tx.id && "animate-spin")} />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-11 w-11 lg:h-8 lg:w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
                                                         onClick={() => handleEdit(tx)}
                                                     >
                                                         <Edit2 className="w-4 h-4 lg:w-4 lg:h-4" />
@@ -243,15 +290,28 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({ accountId,
                                             {(tx.amount || 0) < 0 ? <ArrowDownRight className="inline w-3 h-3 mr-0.5 opacity-70" /> : <ArrowUpRight className="inline w-3 h-3 mr-0.5 opacity-70" />}
                                             {formatCurrency(tx.amount || 0)}
                                         </div>
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setTransactionToDelete(tx);
-                                            }}
-                                            className="text-muted-foreground text-xs hover:text-destructive flex items-center gap-1 p-2 -mr-2 -mb-2 rounded-full"
-                                        >
-                                            <Trash2 className="w-3.5 h-3.5" />
-                                        </button>
+                                        <div className="flex bg-muted/50 rounded-full border border-border/50">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleCreateTemplate(tx);
+                                                }}
+                                                disabled={isCreatingTemplate === tx.id}
+                                                className="text-muted-foreground text-xs hover:text-primary flex items-center gap-1 p-2 rounded-l-full hover:bg-card transition-colors disabled:opacity-50"
+                                            >
+                                                <Repeat className={cn("w-3.5 h-3.5", isCreatingTemplate === tx.id && "animate-spin")} />
+                                            </button>
+                                            <div className="w-[1px] bg-border/50 my-1"></div>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setTransactionToDelete(tx);
+                                                }}
+                                                className="text-muted-foreground text-xs hover:text-destructive flex items-center gap-1 p-2 rounded-r-full hover:bg-card transition-colors"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
                                     </div>
                                 </motion.div>
                             ))

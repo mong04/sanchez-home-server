@@ -175,6 +175,8 @@ Photo journal, family timeline, milestone celebrations. Auto-generated highlight
 - All changes saved locally first, synced when reconnected
 - Visual "SYNCING" indicator
 - Yjs CRDT handles conflict resolution for collaborative data
+- **Caching Core:** Global PWA Caching using NetworkFirst strategy for all dynamic JS chunks up to 5MB, ensuring 100% functional offline navigation.
+- **Graceful Fallback:** `OfflineFallback.tsx` acts as the root error boundary to catch any un-cached chunk load failures with a calm, premium retry UI.
 
 ### 4.2 Push Notifications (Critical Must-Fix — by May 31, 2026)
 - Web Push API (Service Worker + Push subscription)
@@ -232,19 +234,18 @@ Photo journal, family timeline, milestone celebrations. Auto-generated highlight
 
 ---
 
-## 6. Bank Sync & Import (Critical Must-Fix — by May 31, 2026)
+## 6. Delightful Manual Finance (Critical Must-Fix #2 — by May 31, 2026)
 
 ### Current State
-Manual transaction entry and CSV import only. This is the #1 adoption barrier.
+Manual transaction entry and basic CSV import. Bank sync was dropped entirely for privacy and security reasons.
 
 ### Target State
-1. **Improved CSV import** — Support more bank formats, auto-detect columns, duplicate detection
-2. **Bank sync integration** — Plaid or MX Connect for automatic transaction pull
-3. **Security requirements:**
-   - API keys stored server-side only (never in frontend)
-   - PII (account numbers, routing numbers) encrypted at rest
-   - User explicitly authorizes each bank connection
-   - Connection status visible in UI with easy revoke
+Make manual entry so fast and smart that families actually enjoy logging every transaction:
+1. **TransactionFab 2.0** — Smart defaults, "repeat last", haptics.
+2. **Recurring Templates** — Auto-schedule repeating income/expenses.
+3. **Receipt Scanning & CSV Superpowers** — OCR auto-categorization, smart CSV column detection, duplicate flagging.
+4. **Command Center Quick Log** — "Log Spending" card on the dashboard with one-tap categories.
+5. **Privacy First** — No bank connections, ever. 100% manual + CSV.
 
 ---
 

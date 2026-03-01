@@ -7,7 +7,7 @@ import { format } from 'date-fns';
 interface FinanceState {
     currentMonth: string; // "2026-02"
     setCurrentMonth: (m: string) => void;
-    activeTab: 'dashboard' | 'accounts' | 'budget' | 'transactions';
+    activeTab: 'dashboard' | 'accounts' | 'budget' | 'transactions' | 'templates';
     setActiveTab: (tab: FinanceState['activeTab']) => void;
     // Magic Sticky Header State
     toBeBudgeted: number | null;

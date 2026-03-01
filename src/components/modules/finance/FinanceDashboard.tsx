@@ -7,6 +7,7 @@ import {
     User,
     ChevronLeft,
     ChevronRight,
+    Repeat,
 } from 'lucide-react';
 import { format, addMonths, subMonths, parse } from 'date-fns';
 
@@ -22,12 +23,14 @@ const DashboardOverview = React.lazy(() => import('./DashboardOverview').then(m 
 const AccountsList = React.lazy(() => import('./AccountsList').then(m => ({ default: m.AccountsList as React.ComponentType<any> })));
 const BudgetGrid = React.lazy(() => import('./BudgetGrid').then(m => ({ default: m.BudgetGrid as React.ComponentType<{ month: string, scrollY?: any }> })));
 const TransactionsTable = React.lazy(() => import('./TransactionsTable').then(m => ({ default: m.TransactionsTable as React.ComponentType<any> })));
+const RecurringTemplates = React.lazy(() => import('./RecurringTemplates'));
 
 const TABS = [
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
     { id: 'accounts', label: 'Accounts', icon: Landmark },
     { id: 'budget', label: 'Budget', icon: User },
     { id: 'transactions', label: 'Activity', icon: ArrowLeftRight },
+    { id: 'templates', label: 'Templates', icon: Repeat },
 ] as const;
 
 function TabLoading() {
@@ -157,7 +160,7 @@ export function FinanceDashboard() {
 
                 {/* Mobile Extra Heroes (Budget Tab) - These act as the scroll trackers for both views since mobile stacks them */}
                 {activeTab === 'budget' && (
-                    <div className="mt-6 flex flex-col lg:hidden gap-6">
+                    <div className="mt-6 flex flex-col lg:hidden gap-6 relative z-10 shrink-0">
                         <div className="mx-auto flex items-center gap-4 bg-card/80 dark:bg-card/60 backdrop-blur-md p-1.5 rounded-2xl border border-border/50 shadow-sm w-fit">
                             <button onClick={handlePrevMonth} className="p-2 hover:bg-accent rounded-xl transition-colors text-muted-foreground"><ChevronLeft className="w-5 h-5" /></button>
                             <div className="flex flex-col items-center min-w-[130px]">
@@ -190,7 +193,7 @@ export function FinanceDashboard() {
                         className="flex flex-col sm:flex-row items-center gap-0 sm:gap-1 xl:gap-2 p-1 sm:p-1.5 bg-card/90 dark:bg-card/70 backdrop-blur-2xl rounded-2xl sm:rounded-[1.25rem] shadow-lg border border-border/50 dark:border-border/30 w-full sm:w-fit z-20 overflow-hidden shadow-black/5 dark:shadow-black/20 max-w-full"
                         transition={{ type: "spring", stiffness: 400, damping: 30 }}
                     >
-                        <motion.div layout className="grid grid-cols-4 sm:flex gap-1 sm:gap-1.5 w-full sm:w-auto shrink-0">
+                        <motion.div layout className="grid grid-cols-5 sm:flex gap-0.5 sm:gap-1.5 w-full sm:w-auto shrink-0">
                             {TABS.map((tab) => {
                                 const Icon = tab.icon;
                                 const isActive = activeTab === tab.id;
@@ -199,20 +202,20 @@ export function FinanceDashboard() {
                                         key={tab.id}
                                         onClick={() => setActiveTab(tab.id)}
                                         className={cn(
-                                            "relative flex flex-col sm:flex-row items-center justify-center gap-1 md:gap-1.5 xl:gap-2 px-1 py-1.5 sm:px-2 md:px-2.5 xl:px-4 sm:py-2.5 rounded-[10px] sm:rounded-xl text-[10px] sm:text-[11px] xl:text-sm tracking-tight sm:tracking-normal font-medium transition-colors outline-none",
+                                            "relative flex flex-col sm:flex-row items-center justify-center gap-0.5 md:gap-1.5 xl:gap-2 px-0.5 py-2 sm:px-2 md:px-2.5 xl:px-4 sm:py-2.5 rounded-[8px] sm:rounded-xl text-[9px] sm:text-[11px] xl:text-sm tracking-tighter sm:tracking-normal font-medium transition-colors outline-none",
                                             isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
                                         )}
                                     >
                                         {isActive && (
                                             <motion.div
                                                 layoutId="activeTab"
-                                                className="absolute inset-0 bg-primary/10 rounded-[10px] sm:rounded-xl border border-primary/20"
+                                                className="absolute inset-0 bg-primary/10 rounded-[8px] sm:rounded-xl border border-primary/20"
                                                 initial={false}
                                                 transition={{ type: "spring", stiffness: 400, damping: 30 }}
                                             />
                                         )}
-                                        <Icon className={cn("w-4 h-4 sm:w-3.5 sm:h-3.5 xl:w-[18px] xl:h-[18px] relative z-10", isActive && "text-primary")} />
-                                        <span className="relative z-10 truncate w-full sm:w-auto text-center sm:whitespace-nowrap max-w-[70px] xl:max-w-none">{tab.label}</span>
+                                        <Icon className={cn("w-3.5 h-3.5 sm:w-3.5 sm:h-3.5 xl:w-[18px] xl:h-[18px] relative z-10", isActive && "text-primary")} />
+                                        <span className="relative z-10 truncate w-full sm:w-auto text-center sm:whitespace-nowrap max-w-[50px] sm:max-w-[70px] xl:max-w-none">{tab.label}</span>
                                     </button>
                                 );
                             })}
@@ -272,6 +275,7 @@ export function FinanceDashboard() {
                             {activeTab === 'accounts' && <AccountsList />}
                             {activeTab === 'budget' && <BudgetGrid month={currentMonth} />}
                             {activeTab === 'transactions' && <TransactionsTable />}
+                            {activeTab === 'templates' && <RecurringTemplates />}
                         </Suspense>
                     </motion.div>
                 </AnimatePresence>

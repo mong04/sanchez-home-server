@@ -4,7 +4,12 @@
 export const COLLECTIONS = {
     USERS: 'users',
     ACCOUNTS: 'accounts',
+    // TRANSACTIONS includes:
+    // - isIncome (bool): true for income, false/null for expense
+    // - splitGroupId (text): common ID for grouped split entries
     TRANSACTIONS: 'transactions',
+    // CATEGORIES includes:
+    // - Locked system category 'Income' (💰)
     CATEGORIES: 'categories',
     BUDGET_MONTHS: 'budget_months',
     BUDGET_ALLOCATIONS: 'budget_allocations',

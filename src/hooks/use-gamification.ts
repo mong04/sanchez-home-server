@@ -26,6 +26,7 @@ export function useGamification(userId: string | undefined, initialUser?: Partia
                 console.log(`[Gamification] Initializing profile for ${userId}`);
                 const newUser: User = {
                     id: userId,
+                    email: initialUser?.email || '',
                     name: initialUser.name || 'New User',
                     role: initialUser.role || 'kid',
                     xp: 0,

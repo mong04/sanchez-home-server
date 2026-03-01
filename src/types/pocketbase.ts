@@ -6,7 +6,7 @@ export const Collections = {
     Transactions: "transactions",
     Categories: "categories",
     BudgetMonths: "budget_months",
-    RecurringBills: "recurring_bills",
+    RecurringTransactions: "recurring_transactions",
 } as const;
 
 export interface BaseRecord {
@@ -41,6 +41,7 @@ export interface TransactionRecord extends BaseRecord {
     type: "normal" | "transfer" | "adjustment" | "starting_balance";
     transferGroupId?: string;
     splitGroupId?: string;
+    isIncome?: boolean;
     createdBy: string;
     // Expanded relations (populated when using expand param)
     expand?: {
@@ -75,13 +76,14 @@ export interface BudgetMonthRecord extends BaseRecord {
     notes?: string;
 }
 
-export interface RecurringBillRecord extends BaseRecord {
-    name: string;
-    amount: number;
-    frequency: "weekly" | "biweekly" | "monthly" | "quarterly" | "yearly";
-    nextDue: string;
-    category: string;
-    account: string;
-    autoPay: boolean;
+export interface RecurringTransactionRecord extends BaseRecord {
+    owner: string; // User ID
+    templateTransactionId: string; // Relation to transactions
+    frequency: "weekly" | "biweekly" | "monthly" | "yearly";
+    nextDate: string; // ISO date format expected
+    autoApply: boolean;
     notes?: string;
+    expand?: {
+        templateTransactionId?: TransactionRecord;
+    };
 }

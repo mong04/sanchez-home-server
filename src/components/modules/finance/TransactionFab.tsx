@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, X, Check, Briefcase, SplitSquareHorizontal, ChevronDown, RotateCcw } from 'lucide-react';
-import { useAddTransaction, useCategories, useAccounts, useTransactions } from '../../../hooks/useFinanceData';
+import { Plus, X, Check, Briefcase, SplitSquareHorizontal, ChevronDown, RotateCcw, Mic } from 'lucide-react';
+import { useAddTransaction, useCategories, useAccounts, useTransactions, useBudgetMonth, useUpdateBudgetMonth } from '../../../hooks/useFinanceData';
 import { useFinanceStore } from '../../../stores/useFinanceStore';
 import { useBudgetYjs } from '../../../hooks/useBudgetYjs';
 import { formatCurrency } from '../../../lib/utils';
@@ -11,6 +11,7 @@ type Step = 'amount' | 'category' | 'payee';
 export function TransactionFab() {
     const [isOpen, setIsOpen] = useState(false);
     const [step, setStep] = useState<Step>('amount');
+    const [txType, setTxType] = useState<'expense' | 'income'>('expense');
 
     // Amount State
     const [amountStr, setAmountStr] = useState('0');
@@ -36,20 +37,59 @@ export function TransactionFab() {
     const [isSaved, setIsSaved] = useState(false);
     const [savedInsight, setSavedInsight] = useState('');
 
-    const { data: categories } = useCategories('expense');
+    const { data: categories } = useCategories(txType);
     const addTransaction = useAddTransaction();
 
     const { currentMonth } = useFinanceStore();
+    const { data: budgetMonth } = useBudgetMonth(currentMonth);
+    const updateBudgetMonth = useUpdateBudgetMonth();
     const { allocations } = useBudgetYjs(currentMonth);
 
     // Set default account when accounts load
     useEffect(() => {
         if (accounts && accounts.length > 0 && !selectedAccountId) {
-            // Try to find a checking account, otherwise use first
-            const defaultAcc = accounts.find(a => a.name.toLowerCase().includes('checking')) || accounts[0];
-            setSelectedAccountId(defaultAcc.id);
+            const lastAccId = localStorage.getItem('sfos_last_account');
+            if (lastAccId && accounts.some(a => a.id === lastAccId)) {
+                setSelectedAccountId(lastAccId);
+            } else {
+                // Try to find a checking account, otherwise use first
+                const defaultAcc = accounts.find(a => a.name.toLowerCase().includes('checking')) || accounts[0];
+                setSelectedAccountId(defaultAcc.id);
+            }
         }
     }, [accounts, selectedAccountId]);
+
+    // Get last transaction to repeat
+    const lastTransaction = useMemo(() => {
+        if (!recentTxs || recentTxs.length === 0) return null;
+        // The most recent normal transaction of the matching type
+        return recentTxs.find(t => t.type === 'normal' && !t.splitGroupId && (txType === 'expense' ? t.amount < 0 : t.amount > 0));
+    }, [recentTxs, txType]);
+
+    const handleRepeatLast = async () => {
+        if (!lastTransaction || !selectedAccountId) return;
+        triggerHaptic();
+
+        try {
+            await addTransaction.mutateAsync({
+                amount: lastTransaction.amount,
+                category: lastTransaction.category,
+                account: selectedAccountId,
+                date: new Date().toISOString(),
+                type: 'normal',
+                payee: lastTransaction.payee,
+                cleared: false
+            });
+            generateInsight(lastTransaction.category, Math.abs(lastTransaction.amount));
+            setIsSaved(true);
+            setTimeout(() => {
+                setIsOpen(false);
+                setTimeout(reset, 400); // Wait for exit animation
+            }, 3000); // Wait in confirmation view
+        } catch (error) {
+            console.error("Failed to repeat transaction", error);
+        }
+    };
 
     const triggerHaptic = () => {
         if ('vibrate' in navigator) navigator.vibrate(50);
@@ -76,7 +116,12 @@ export function TransactionFab() {
         triggerHaptic();
         const mainVal = parseFloat(amountStr);
         if (mainVal > 0) {
-            setStep('category');
+            if (txType === 'income') {
+                setSelectedCategories([]);
+                setStep('payee');
+            } else {
+                setStep('category');
+            }
         }
     };
 
@@ -109,10 +154,37 @@ export function TransactionFab() {
         const mainAmount = parseFloat(amountStr);
         const splitAmount = isSplit ? parseFloat(splitAmountStr) : 0;
 
+        const multiplier = txType === 'expense' ? -1 : 1;
+        const dbMainAmount = mainAmount * multiplier;
+        const dbSplitAmount = splitAmount * multiplier;
+
         try {
-            if (!isSplit || categoryIds.length === 1) {
+            if (txType === 'income') {
+                const systemIncomeCat = categories?.find(c => c.isSystem && c.type === 'income');
+
                 await addTransaction.mutateAsync({
-                    amount: -mainAmount,
+                    amount: dbMainAmount,
+                    category: systemIncomeCat?.id || "",
+                    account: selectedAccountId,
+                    date: new Date().toISOString(),
+                    type: 'normal',
+                    payee: finalPayee,
+                    cleared: false,
+                    isIncome: true
+                });
+
+                // Auto-increase the month's income pool
+                if (budgetMonth?.id) {
+                    await updateBudgetMonth.mutateAsync({
+                        id: budgetMonth.id,
+                        data: { income: (budgetMonth.income || 0) + mainAmount }
+                    });
+                }
+
+                generateInsight("", mainAmount);
+            } else if (!isSplit || categoryIds.length === 1) {
+                await addTransaction.mutateAsync({
+                    amount: dbMainAmount,
                     category: categoryIds[0],
                     account: selectedAccountId,
                     date: new Date().toISOString(),
@@ -123,12 +195,13 @@ export function TransactionFab() {
                 generateInsight(categoryIds[0], mainAmount);
             } else {
                 // Split transaction
+                const dbRemainingAmount = dbMainAmount - dbSplitAmount;
                 const remainingAmount = mainAmount - splitAmount;
                 const splitGroupId = crypto.randomUUID();
 
                 await Promise.all([
                     addTransaction.mutateAsync({
-                        amount: -remainingAmount,
+                        amount: dbRemainingAmount,
                         category: categoryIds[0],
                         account: selectedAccountId,
                         date: new Date().toISOString(),
@@ -139,7 +212,7 @@ export function TransactionFab() {
                         splitGroupId
                     }),
                     addTransaction.mutateAsync({
-                        amount: -splitAmount,
+                        amount: dbSplitAmount,
                         category: categoryIds[1],
                         account: selectedAccountId,
                         date: new Date().toISOString(),
@@ -154,6 +227,11 @@ export function TransactionFab() {
             }
 
             setIsSaved(true);
+
+            // Save Smart Defaults
+            localStorage.setItem('sfos_last_account', selectedAccountId);
+            localStorage.setItem('sfos_last_category', categoryIds[0]);
+
             setTimeout(() => {
                 setIsOpen(false);
                 setTimeout(reset, 400); // Wait for exit animation
@@ -165,6 +243,11 @@ export function TransactionFab() {
     };
 
     const generateInsight = (categoryId: string, spendAmount: number) => {
+        if (txType === 'income') {
+            setSavedInsight(`Logged ${formatCurrency(spendAmount)} as income! 🎉`);
+            return;
+        }
+
         const cat = categories?.find(c => c.id === categoryId);
         if (!cat) {
             setSavedInsight('Transaction logged successfully!');
@@ -195,6 +278,7 @@ export function TransactionFab() {
         setPayeeStr('');
         setIsSaved(false);
         setShowAccountSelector(false);
+        setTxType('expense');
     };
 
     const toggleOpen = () => {
@@ -218,6 +302,31 @@ export function TransactionFab() {
         enter: { x: 50, opacity: 0 },
         center: { x: 0, opacity: 1 },
         exit: { x: -50, opacity: 0 }
+    };
+
+    const startVoiceInput = () => {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            alert("Voice input is not supported in this browser.");
+            return;
+        }
+        triggerHaptic();
+
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'en-US';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+
+        recognition.onstart = () => {
+            // Optional: visual indicator that it's listening
+        };
+
+        recognition.onresult = (e: any) => {
+            const transcript = e.results[0][0].transcript;
+            setPayeeStr(transcript);
+            // Optionally auto-submit if confident, but letting user review is safer
+        };
+        recognition.start();
     };
 
     // Keyboard support for desktop
@@ -285,6 +394,16 @@ export function TransactionFab() {
             return 0;
         });
 
+        // Smart default: Last used category at the very front
+        const lastCategoryId = localStorage.getItem('sfos_last_category');
+        if (lastCategoryId) {
+            const lastIndex = sorted.findIndex(c => c.id === lastCategoryId);
+            if (lastIndex > -1) {
+                const [lastCat] = sorted.splice(lastIndex, 1);
+                sorted.unshift(lastCat);
+            }
+        }
+
         return sorted;
     }, [categories]);
 
@@ -337,10 +456,10 @@ export function TransactionFab() {
                         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                         className="
                             pointer-events-auto flex flex-col overflow-hidden bg-background shadow-2xl
-                            mb-4 w-full md:w-[360px] border border-border
+                            mb-0 md:mb-4 w-full md:w-[380px] border border-border
                             fixed md:relative bottom-0 right-0 left-0 md:bottom-auto md:right-auto md:left-auto
                             rounded-t-3xl md:rounded-3xl
-                            h-[85vh] max-h-[600px] md:h-[550px] md:max-h-[550px]
+                            h-auto max-h-[90vh] md:max-h-[600px]
                             z-50
                         "
                     >
@@ -352,8 +471,8 @@ export function TransactionFab() {
                         {/* Header */}
                         <div className="flex items-center justify-between p-4 bg-background border-b border-border/50 shrink-0">
                             <span className="font-semibold text-muted-foreground text-sm tracking-wide uppercase">
-                                {step === 'amount' ? 'Quick Add' :
-                                    step === 'payee' ? 'Who did you pay?' :
+                                {step === 'amount' ? (txType === 'income' ? 'How much did you get paid?' : 'Quick Add') :
+                                    step === 'payee' ? (txType === 'income' ? 'Who paid you?' : 'Who did you pay?') :
                                         isSplit ? `Select Category ${selectedCategories.length + 1}/2` : 'Select Category'}
                             </span>
                             {step !== 'amount' && !isSaved && (
@@ -383,7 +502,7 @@ export function TransactionFab() {
                                         key="success"
                                         initial={{ opacity: 0, scale: 0.8 }}
                                         animate={{ opacity: 1, scale: 1 }}
-                                        className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center"
+                                        className="flex flex-col items-center justify-center p-12 text-center"
                                     >
                                         <motion.div
                                             initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", delay: 0.1 }}
@@ -392,7 +511,7 @@ export function TransactionFab() {
                                             <Check className="w-10 h-10" />
                                         </motion.div>
                                         <h3 className="text-2xl font-bold mb-2 text-foreground">Saved!</h3>
-                                        <p className="text-muted-foreground font-medium text-lg leading-relaxed">
+                                        <p role="status" aria-live="polite" className="text-muted-foreground font-medium text-lg leading-relaxed">
                                             {savedInsight}
                                         </p>
                                         <button
@@ -409,12 +528,32 @@ export function TransactionFab() {
                                         initial="enter"
                                         animate="center"
                                         exit="exit"
-                                        className="absolute inset-0 flex flex-col justify-between"
+                                        className="flex flex-col w-full"
                                     >
-                                        <div className="flex-1 flex flex-col items-center justify-center p-4 min-h-0 overflow-y-auto w-full">
+                                        <div className="flex flex-col items-center justify-center p-4 w-full">
+
+                                            {/* Income / Expense Toggle */}
+                                            <div className="bg-muted p-1 flex items-center justify-between rounded-full mb-6 w-full max-w-[200px] relative shadow-inner">
+                                                <div
+                                                    className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-background rounded-full shadow-sm transition-all duration-300 ease-out z-0"
+                                                    style={{ left: txType === 'expense' ? '4px' : 'calc(50%)' }}
+                                                />
+                                                <button
+                                                    onClick={() => setTxType('expense')}
+                                                    className={`flex-1 relative z-10 text-xs font-bold uppercase tracking-wider py-2 transition-colors ${txType === 'expense' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                                                >
+                                                    Expense
+                                                </button>
+                                                <button
+                                                    onClick={() => setTxType('income')}
+                                                    className={`flex-1 relative z-10 text-xs font-bold uppercase tracking-wider py-2 transition-colors ${txType === 'income' ? 'text-success' : 'text-muted-foreground hover:text-success'}`}
+                                                >
+                                                    Income
+                                                </button>
+                                            </div>
 
                                             {/* Account Pill Selector */}
-                                            <div className="mb-6 relative">
+                                            <div className="mb-6 relative w-full flex justify-center">
                                                 <button
                                                     onClick={() => setShowAccountSelector(!showAccountSelector)}
                                                     className="flex items-center gap-2 bg-muted/50 hover:bg-muted px-4 py-2 rounded-full transition-colors border border-border/50 text-sm font-medium"
@@ -472,19 +611,47 @@ export function TransactionFab() {
                                                 </AnimatePresence>
                                             </div>
 
-                                            {/* Quick Split Toggle */}
-                                            <button
-                                                onClick={() => {
-                                                    setIsSplit(!isSplit);
-                                                    setActiveInput(!isSplit ? 'split' : 'main');
-                                                    if (isSplit) setSplitAmountStr('0');
-                                                }}
-                                                className={`mt-4 mb-2 flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-colors shrink-0
-                                                    ${isSplit ? 'bg-blue-500/10 text-blue-600' : 'bg-muted text-muted-foreground hover:text-foreground'}`}
-                                            >
-                                                <SplitSquareHorizontal className="w-4 h-4" />
-                                                {isSplit ? 'Cancel Split' : 'Split Amount'}
-                                            </button>
+                                            {/* Smart Repeat Button if starting fresh */}
+                                            <AnimatePresence>
+                                                {amountStr === '0' && !isSplit && lastTransaction && (
+                                                    <motion.div
+                                                        key="repeat-btn"
+                                                        initial={{ opacity: 0, y: 10, height: 0 }}
+                                                        animate={{ opacity: 1, y: 0, height: 'auto' }}
+                                                        exit={{ opacity: 0, y: -10, height: 0 }}
+                                                        className="w-full px-6 mt-2 overflow-hidden shrink-0"
+                                                    >
+                                                        <button
+                                                            onClick={handleRepeatLast}
+                                                            className="w-full flex items-center justify-between p-4 rounded-2xl bg-primary/10 hover:bg-primary/20 transition-colors border border-primary/20 text-primary active:scale-95 duration-100 shadow-sm"
+                                                        >
+                                                            <div className="flex flex-col items-start gap-0.5 max-w-[65%]">
+                                                                <span className="text-[10px] font-bold uppercase tracking-wider opacity-80 flex items-center gap-1"><RotateCcw className="w-3 h-3" /> Repeat Last</span>
+                                                                <span className="text-sm font-semibold text-left line-clamp-1 break-all flex-1">{lastTransaction.payee || 'Transaction'}</span>
+                                                            </div>
+                                                            <div className="text-lg font-bold shrink-0 ml-2">
+                                                                {formatCurrency(Math.abs(lastTransaction.amount))}
+                                                            </div>
+                                                        </button>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+
+                                            {/* Quick Split Toggle (Only for expense right now) */}
+                                            {txType === 'expense' && (
+                                                <button
+                                                    onClick={() => {
+                                                        setIsSplit(!isSplit);
+                                                        setActiveInput(!isSplit ? 'split' : 'main');
+                                                        if (isSplit) setSplitAmountStr('0');
+                                                    }}
+                                                    className={`mt-4 mb-2 flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-colors shrink-0
+                                                        ${isSplit ? 'bg-blue-500/10 text-blue-600' : 'bg-muted text-muted-foreground hover:text-foreground'}`}
+                                                >
+                                                    <SplitSquareHorizontal className="w-4 h-4" />
+                                                    {isSplit ? 'Cancel Split' : 'Split Amount'}
+                                                </button>
+                                            )}
 
                                         </div>
 
@@ -492,13 +659,14 @@ export function TransactionFab() {
                                         <div className="flex flex-col shrink-0 mt-auto">
                                             <div className="grid grid-cols-3 gap-[1px] bg-border/50">
                                                 {keypad.flat().map((key) => (
-                                                    <button
+                                                    <motion.button
                                                         key={key}
+                                                        whileTap={{ scale: 0.95, backgroundColor: 'hsl(var(--muted))' }}
                                                         onClick={() => handleKeypadPress(key)}
-                                                        className="bg-background h-14 sm:h-16 flex items-center justify-center text-2xl font-medium text-foreground hover:bg-muted active:bg-accent transition-colors"
+                                                        className="bg-background h-14 sm:h-16 flex items-center justify-center text-2xl font-medium text-foreground hover:bg-muted active:bg-accent transition-colors origin-center"
                                                     >
                                                         {key === 'backspace' ? <X className="w-6 h-6" /> : key}
-                                                    </button>
+                                                    </motion.button>
                                                 ))}
                                             </div>
 
@@ -518,7 +686,7 @@ export function TransactionFab() {
                                         initial="enter"
                                         animate="center"
                                         exit="exit"
-                                        className="absolute inset-0 overflow-y-auto p-4 content-start"
+                                        className="overflow-y-auto p-4 max-h-[70vh] md:max-h-[500px]"
                                     >
                                         <div className="mb-4">
                                             <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 px-2">Suggestions</h4>
@@ -539,7 +707,7 @@ export function TransactionFab() {
                                         </div>
 
                                         <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 px-2 mt-6">All Categories</h4>
-                                        <div className="grid grid-cols-3 gap-2 pb-20">
+                                        <div className="grid grid-cols-3 gap-2 pb-6">
                                             {suggestedCategories.slice(3).map((cat) => (
                                                 <button
                                                     key={cat.id}
@@ -561,9 +729,9 @@ export function TransactionFab() {
                                         initial="enter"
                                         animate="center"
                                         exit="exit"
-                                        className="absolute inset-0 flex flex-col p-4 bg-background"
+                                        className="flex flex-col p-4 md:p-6 bg-background"
                                     >
-                                        <div className="flex-1 flex flex-col justify-center max-w-sm w-full mx-auto pb-20">
+                                        <div className="flex flex-col flex-1 pb-6 w-full mx-auto">
                                             {suggestedPayees.length > 0 && (
                                                 <div className="mb-8">
                                                     <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 px-2 text-center">Top Suggestions</h4>
@@ -583,17 +751,28 @@ export function TransactionFab() {
 
                                             <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 px-2 text-center">Manual Entry</h4>
                                             <div className="flex items-center gap-2">
-                                                <input
-                                                    type="text"
-                                                    value={payeeStr}
-                                                    onChange={(e) => setPayeeStr(e.target.value)}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') handlePayeeSubmit(payeeStr);
-                                                    }}
-                                                    placeholder="Type payee name..."
-                                                    className="flex-1 h-14 rounded-2xl border-2 border-input bg-background px-4 py-2 text-lg font-semibold text-foreground ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-primary transition-colors"
-                                                    autoFocus
-                                                />
+                                                <div className="relative flex-1">
+                                                    <input
+                                                        type="text"
+                                                        value={payeeStr}
+                                                        onChange={(e) => setPayeeStr(e.target.value)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') handlePayeeSubmit(payeeStr);
+                                                        }}
+                                                        placeholder="Type payee name..."
+                                                        className="w-full h-14 rounded-2xl border-2 border-input bg-background pl-4 pr-12 py-2 text-lg font-semibold text-foreground ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-primary transition-colors pr-12"
+                                                        autoFocus
+                                                    />
+                                                    {('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) && (
+                                                        <button
+                                                            onClick={startVoiceInput}
+                                                            className="absolute right-2 top-2 h-10 w-10 flex items-center justify-center rounded-xl bg-muted/50 text-muted-foreground hover:bg-primary/20 hover:text-primary transition-colors"
+                                                            title="Voice dictation"
+                                                        >
+                                                            <Mic className="w-5 h-5" />
+                                                        </button>
+                                                    )}
+                                                </div>
                                                 <button
                                                     onClick={() => handlePayeeSubmit(payeeStr)}
                                                     disabled={!payeeStr.trim()}

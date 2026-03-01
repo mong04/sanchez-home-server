@@ -8,16 +8,42 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      strategies: 'injectManifest',
-      srcDir: 'src',
-      filename: 'service-worker.ts',
       registerType: 'autoUpdate',
-      injectRegister: 'auto',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'robots.txt'],
-      devOptions: {
-        enabled: true,
-        type: 'module',
+      workbox: {
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB to ensure large dynamic chunks are precached
+        globPatterns: ['**/*.{js,mjs,css,html,ico,png,svg,json,woff2}'],
+        runtimeCaching: [
+          {
+            // Cache ALL dynamic JS chunks app-wide
+            urlPattern: ({ url }) => url.pathname.match(/\.(?:js|mjs)$/i) !== null,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'dynamic-chunks',
+              expiration: { maxEntries: 500, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+          {
+            urlPattern: ({ request }) => request.destination === 'document',
+            handler: 'NetworkFirst',
+            options: { cacheName: 'html-documents' },
+          },
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/api/') || url.hostname.includes('pocketbase') || url.hostname.includes('supabase'),
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-cache',
+              expiration: { maxEntries: 500, maxAgeSeconds: 60 * 60 * 24 * 7 },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
+        ],
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api/],
       },
+      devOptions: { enabled: true },
       manifest: {
         name: 'Sanchez Family OS',
         short_name: 'SFOS',
@@ -45,9 +71,6 @@ export default defineConfig({
             purpose: 'any maskable',
           },
         ],
-      },
-      injectManifest: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
       },
     }),
   ],

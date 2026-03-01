@@ -18,6 +18,18 @@ registerSW({
   },
 })
 
+import { OfflineFallback } from './components/OfflineFallback'
+
+function AppRoot() {
+  const isOnline = navigator.onLine;
+
+  if (!isOnline) {
+    return <OfflineFallback />;
+  }
+
+  return <RouterProvider router={router} />;
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <PersistQueryClientProvider
@@ -25,7 +37,7 @@ createRoot(document.getElementById('root')!).render(
       persistOptions={{ persister: idbPersister }}
     >
       <BackendProvider>
-        <RouterProvider router={router} />
+        <AppRoot />
       </BackendProvider>
     </PersistQueryClientProvider>
   </StrictMode>,

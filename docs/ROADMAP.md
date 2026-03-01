@@ -69,7 +69,19 @@ These are non-negotiable adoption drivers identified by market research:
 <!-- ✅ Complete: Subscription management (DB storage) -->
 <!-- ✅ Complete: Backend integration (BackendAdapter.sendPush) -->
 <!-- ✅ Complete: UI for permission prompt + toasts -->
-| 2 | **Bank Sync / Improved Import** | Manual-only transaction entry is the #1 adoption barrier for finance modules |
+| 2 | **Delightful Manual Finance** | Bank sync was dropped for privacy. Manual entry must become fast, smart, and satisfying to use. |
+<!-- Delightful Manual Finance Implementation Checklist -->
+<!-- 🔎 Phase 0: Research & Alignment (Feb 27, 2026) -->
+<!-- 1. Where does income currently live? In the 'budget_months' collection record 'income' field. -->
+<!-- 2. How is “To Be Budgeted” calculated today? budget.income + budget.rollover - sum(allocations). -->
+<!-- 3. Is there already a system “Income” category? No, currently relies on ad-hoc categories or manual income pool updates. Phase 1 will create a locked system 'Income' category. -->
+<!-- 4. What should happen the moment income is logged? TBB hero card updates instantly via TanStack Query invalidation, adding the amount to the monthly income pool. -->
+
+<!-- ✅ Complete: TransactionFab 2.0 (Smart defaults, haptics, repeat last) -->
+<!-- ✅ Complete: Recurring income/expense templates -->
+<!-- ⏳ Pending: Receipt scanning + auto-categorization -->
+<!-- ⏳ Pending: Smart CSV import (auto-map, duplicate detection, bulk edit) -->
+<!-- ⏳ Pending: Daily Quick Log Spending card in Command Center -->
 | 3 | **Basic Cross-Module Analytics** | Users need spending trends, category breakdowns, and net worth history to trust the app |
 
 ---

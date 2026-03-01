@@ -8,6 +8,7 @@ import {
     type TransactionRecord,
     type CategoryRecord,
     type BudgetMonthRecord,
+    type RecurringTransactionRecord,
 } from '../types/pocketbase';
 import { getOrCreateBudgetMonth } from '../lib/finance/budgetUtils';
 
@@ -94,8 +95,12 @@ export function useDeleteAccount() {
 
 export function useTransactions(filters?: { accountId?: string; cleared?: boolean }) {
     const { adapter } = useBackend();
+
+    // Normalize filters: if an object is passed but all keys are undefined, treat as undefined
+    const normalizedFilters = filters && Object.values(filters).some(v => v !== undefined) ? filters : undefined;
+
     return useQuery({
-        queryKey: [Collections.Transactions, filters],
+        queryKey: [Collections.Transactions, normalizedFilters],
         queryFn: async () => {
             console.log('[useTransactions] DIAG: queryFn running, filters=', JSON.stringify(filters));
             const filterParts: string[] = [];
@@ -152,7 +157,7 @@ export function useAddTransaction() {
                 queryClient.setQueryData([Collections.Transactions, undefined], context.previousTransactions);
             }
         },
-        onSuccess: () => {
+        onSettled: () => {
             queryClient.invalidateQueries({ queryKey: [Collections.Transactions] });
             queryClient.invalidateQueries({ queryKey: [Collections.Accounts] });
         },
@@ -167,7 +172,7 @@ export function useUpdateTransaction() {
         mutationFn: async ({ id, data }: { id: string; data: Partial<TransactionRecord> }) => {
             return adapter.update<TransactionRecord>(Collections.Transactions, id, data);
         },
-        onSuccess: () => {
+        onSettled: () => {
             queryClient.invalidateQueries({ queryKey: [Collections.Transactions] });
             queryClient.invalidateQueries({ queryKey: [Collections.Accounts] });
         },
@@ -182,7 +187,7 @@ export function useDeleteTransaction() {
         mutationFn: async (id: string) => {
             return await adapter.delete(Collections.Transactions, id);
         },
-        onSuccess: () => {
+        onSettled: () => {
             queryClient.invalidateQueries({ queryKey: [Collections.Transactions] });
             queryClient.invalidateQueries({ queryKey: [Collections.Accounts] });
         },
@@ -197,8 +202,9 @@ export function useToggleCleared() {
         mutationFn: async ({ id, cleared }: { id: string; cleared: boolean }) => {
             return adapter.update(Collections.Transactions, id, { cleared });
         },
-        onSuccess: () => {
+        onSettled: () => {
             queryClient.invalidateQueries({ queryKey: [Collections.Transactions] });
+            queryClient.invalidateQueries({ queryKey: [Collections.Accounts] });
         },
     });
 }
@@ -292,6 +298,67 @@ export function useUpdateBudgetMonth() {
             // Note: queryKey depends on 'month' which isn't in variables. 
             // Invalidation of all BudgetMonths is safer if we don't have the month string here.
             queryClient.invalidateQueries({ queryKey: [Collections.BudgetMonths] });
+        },
+    });
+}
+
+// ─── Recurring Transactions Queries ──────────────────────────────
+
+export function useRecurringTransactions() {
+    const { adapter } = useBackend();
+    return useQuery({
+        queryKey: [Collections.RecurringTransactions],
+        queryFn: async () => {
+            return await adapter.getFullList<RecurringTransactionRecord>(Collections.RecurringTransactions, {
+                sort: 'nextDate',
+                expand: 'templateTransactionId,templateTransactionId.account,templateTransactionId.category',
+            });
+        },
+    });
+}
+
+export function useCreateRecurringTransaction() {
+    const queryClient = useQueryClient();
+    const { adapter } = useBackend();
+
+    return useMutation({
+        mutationFn: async (newRecurring: Partial<RecurringTransactionRecord>) => {
+            const user = adapter.getCurrentUser();
+            return await adapter.create<RecurringTransactionRecord>(Collections.RecurringTransactions, {
+                ...newRecurring,
+                owner: user?.id,
+            });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: [Collections.RecurringTransactions] });
+        },
+    });
+}
+
+export function useUpdateRecurringTransaction() {
+    const queryClient = useQueryClient();
+    const { adapter } = useBackend();
+
+    return useMutation({
+        mutationFn: async ({ id, data }: { id: string; data: Partial<RecurringTransactionRecord> }) => {
+            return await adapter.update<RecurringTransactionRecord>(Collections.RecurringTransactions, id, data);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: [Collections.RecurringTransactions] });
+        },
+    });
+}
+
+export function useDeleteRecurringTransaction() {
+    const queryClient = useQueryClient();
+    const { adapter } = useBackend();
+
+    return useMutation({
+        mutationFn: async (id: string) => {
+            return await adapter.delete(Collections.RecurringTransactions, id);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: [Collections.RecurringTransactions] });
         },
     });
 }

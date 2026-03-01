@@ -105,9 +105,25 @@ export class SupabaseAdapter implements BackendAdapter {
         return (data ?? []) as T[];
     }
 
+    // Helper to match PocketBase's 15-char string IDs just in case frontend relies on it
+    private generateId(): string {
+        return Array.from(crypto.getRandomValues(new Uint8Array(15)))
+            .map((b) => "abcdefghijklmnopqrstuvwxyz0123456789"[b % 36])
+            .join("");
+    }
+
     async create<T>(collection: string, data: Partial<T>) {
-        const { data: result, error } = await this.supabase.from(collection).insert(data).select().single();
-        if (error) throw error;
+        const payload: any = { ...data };
+        // Auto-generate ID if missing to mimic PocketBase behavior
+        if (!payload.id) {
+            payload.id = this.generateId();
+        }
+
+        const { data: result, error } = await this.supabase.from(collection).insert(payload).select().single();
+        if (error) {
+            console.error(`❌ [SupabaseAdapter] Failed to create in ${collection}:`, error, 'Payload:', payload);
+            throw error;
+        }
         return result as T;
     }
 

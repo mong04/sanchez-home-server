@@ -12,8 +12,8 @@ export function OfflineFallback() {
             className="min-h-screen bg-background flex items-center justify-center p-6"
         >
             <div className="max-w-md text-center space-y-6">
-                <div className="mx-auto w-20 h-20 rounded-2xl bg-muted flex items-center justify-center">
-                    <WifiOff className="w-10 h-10 text-muted-foreground" />
+                <div className="mx-auto w-20 h-20 rounded-2xl bg-card border shadow-sm flex items-center justify-center">
+                    <WifiOff className="w-10 h-10 text-card-foreground/70" />
                 </div>
 
                 <div>

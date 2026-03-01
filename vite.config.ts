@@ -15,12 +15,12 @@ export default defineConfig({
         globPatterns: ['**/*.{js,mjs,css,html,ico,png,svg,json,woff2}'],
         runtimeCaching: [
           {
-            // Cache ALL dynamic JS chunks app-wide
-            urlPattern: ({ url }) => url.pathname.match(/\.(?:js|mjs)$/i) !== null,
-            handler: 'NetworkFirst',
+            // Cache ALL dynamic JS chunks app-wide aggressively
+            urlPattern: ({ url }) => url.pathname.endsWith('.js') || url.pathname.endsWith('.mjs'),
+            handler: 'StaleWhileRevalidate',
             options: {
-              cacheName: 'dynamic-chunks',
-              expiration: { maxEntries: 500, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              cacheName: 'all-dynamic-chunks',
+              expiration: { maxEntries: 500, maxAgeSeconds: 60 * 60 * 24 * 60 },
             },
           },
           {

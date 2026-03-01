@@ -181,7 +181,7 @@ export default class Server implements Party.Server {
             const config = {
                 pbUrl: (this.room.env.POCKETBASE_URL as string) || "http://127.0.0.1:8090",
                 supabaseUrl: (this.room.env.SUPABASE_URL as string) || (this.room.env.VITE_SUPABASE_URL as string),
-                supabaseAnonKey: (this.room.env.SUPABASE_ANON_KEY as string) || (this.room.env.VITE_SUPABASE_PUBLISHABLE_KEY as string),
+                supabasePublishableKey: (this.room.env.SUPABASE_PUBLISHABLE_KEY as string) || (this.room.env.VITE_SUPABASE_PUBLISHABLE_KEY as string),
             };
 
             const payload = token ? await verifyToken(token, config, this.room.env.PARTYKIT_SECRET as string) : null;
@@ -369,7 +369,7 @@ export default class Server implements Party.Server {
         const config = {
             pbUrl: (this.room.env.POCKETBASE_URL as string) || "http://127.0.0.1:8090",
             supabaseUrl: (this.room.env.SUPABASE_URL as string) || (this.room.env.VITE_SUPABASE_URL as string),
-            supabaseAnonKey: (this.room.env.SUPABASE_ANON_KEY as string) || (this.room.env.VITE_SUPABASE_PUBLISHABLE_KEY as string),
+            supabasePublishableKey: (this.room.env.SUPABASE_PUBLISHABLE_KEY as string) || (this.room.env.VITE_SUPABASE_PUBLISHABLE_KEY as string),
         };
 
         const payload = token ? await verifyToken(token, config, this.room.env.PARTYKIT_SECRET as string) : null;

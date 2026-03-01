@@ -117,7 +117,7 @@ export async function verifyPocketBaseToken(token: string, pbUrl?: string): Prom
 /**
  * Verifies a Supabase Auth Token by calling the Supabase API.
  */
-export async function verifySupabaseToken(token: string, supabaseUrl?: string, supabaseAnonKey?: string): Promise<JWTPayload | null> {
+export async function verifySupabaseToken(token: string, supabaseUrl?: string, supabasePublishableKey?: string): Promise<JWTPayload | null> {
     if (!supabaseUrl) return null;
 
     try {
@@ -125,7 +125,7 @@ export async function verifySupabaseToken(token: string, supabaseUrl?: string, s
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
-                'apikey': supabaseAnonKey || '',
+                'apikey': supabasePublishableKey || '',
             }
         });
 
@@ -158,7 +158,7 @@ export async function verifyToken(
     config: {
         pbUrl?: string;
         supabaseUrl?: string;
-        supabaseAnonKey?: string;
+        supabasePublishableKey?: string;
     },
     secret?: string
 ): Promise<JWTPayload | null> {
@@ -168,7 +168,7 @@ export async function verifyToken(
 
     // 2. Try Supabase (remote check)
     if (config.supabaseUrl) {
-        const supabase = await verifySupabaseToken(token, config.supabaseUrl, config.supabaseAnonKey);
+        const supabase = await verifySupabaseToken(token, config.supabaseUrl, config.supabasePublishableKey);
         if (supabase) return supabase;
     }
 

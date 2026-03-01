@@ -62,7 +62,7 @@ export class SupabaseAdapter implements BackendAdapter {
         const query = this.supabase.from(collection).select(options?.expand ?? '*').eq('id', id).single();
         const { data, error } = await query;
         if (error) throw error;
-        return data as T;
+        return this.toCamel(data) as T;
     }
 
     async getList<T>(collection: string, options?: {
@@ -86,7 +86,9 @@ export class SupabaseAdapter implements BackendAdapter {
 
         const { data, count, error } = await query;
         if (error) throw error;
-        return { items: (data ?? []) as T[], total: count ?? 0 };
+
+        const mappedItems = (data ?? []).map(item => this.toCamel(item));
+        return { items: mappedItems as T[], total: count ?? 0 };
     }
 
     async getFullList<T>(collection: string, options?: {
@@ -102,7 +104,7 @@ export class SupabaseAdapter implements BackendAdapter {
 
         const { data, error } = await query;
         if (error) throw error;
-        return (data ?? []) as T[];
+        return (data ?? []).map(item => this.toCamel(item)) as T[];
     }
 
     // Helper to match PocketBase's 15-char string IDs just in case frontend relies on it
@@ -112,6 +114,28 @@ export class SupabaseAdapter implements BackendAdapter {
             .join("");
     }
 
+    // Helper to map camelCase (frontend) to snake_case (database)
+    private toSnake(obj: any): any {
+        if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
+        const result: any = {};
+        for (const [key, value] of Object.entries(obj)) {
+            const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+            result[snakeKey] = value;
+        }
+        return result;
+    }
+
+    // Helper to map snake_case (database) to camelCase (frontend)
+    private toCamel(obj: any): any {
+        if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
+        const result: any = {};
+        for (const [key, value] of Object.entries(obj)) {
+            const camelKey = key.replace(/_([a-z])/g, g => g[1].toUpperCase());
+            result[camelKey] = value;
+        }
+        return result;
+    }
+
     async create<T>(collection: string, data: Partial<T>) {
         const payload: any = { ...data };
         // Auto-generate ID if missing to mimic PocketBase behavior
@@ -119,18 +143,21 @@ export class SupabaseAdapter implements BackendAdapter {
             payload.id = this.generateId();
         }
 
-        const { data: result, error } = await this.supabase.from(collection).insert(payload).select().single();
+        const snakePayload = this.toSnake(payload);
+
+        const { data: result, error } = await this.supabase.from(collection).insert(snakePayload).select().single();
         if (error) {
-            console.error(`❌ [SupabaseAdapter] Failed to create in ${collection}:`, error, 'Payload:', payload);
+            console.error(`❌ [SupabaseAdapter] Failed to create in ${collection}:`, error, 'Payload:', snakePayload);
             throw error;
         }
-        return result as T;
+        return this.toCamel(result) as T;
     }
 
     async update<T>(collection: string, id: string, data: Partial<T>) {
-        const { data: result, error } = await this.supabase.from(collection).update(data).eq('id', id).select().single();
+        const snakePayload = this.toSnake(data);
+        const { data: result, error } = await this.supabase.from(collection).update(snakePayload).eq('id', id).select().single();
         if (error) throw error;
-        return result as T;
+        return this.toCamel(result) as T;
     }
 
     async delete(collection: string, id: string) {

@@ -176,7 +176,9 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({ accountId,
                                                 </button>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-muted-foreground">
-                                                {format(parseISO(tx.date), 'MMM d, yyyy')}
+                                                {tx.date && !isNaN(parseISO(tx.date).getTime())
+                                                    ? format(parseISO(tx.date), 'MMM d, yyyy')
+                                                    : 'Unknown Date'}
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="font-medium text-foreground">{tx.payee}</div>
@@ -274,7 +276,11 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({ accountId,
                                     <div className="flex-grow min-w-0">
                                         <div className="font-medium text-foreground truncate">{tx.payee}</div>
                                         <div className="text-xs mt-1 flex items-center gap-2 text-muted-foreground line-clamp-1">
-                                            <span>{format(parseISO(tx.date), 'MMM d, yyyy')}</span>
+                                            <span>
+                                                {tx.date && !isNaN(parseISO(tx.date).getTime())
+                                                    ? format(parseISO(tx.date), 'MMM d, yyyy')
+                                                    : 'Unknown Date'}
+                                            </span>
                                             {tx.expand?.category?.name && (
                                                 <span className="bg-muted px-1.5 py-0.5 rounded-md truncate max-w-[120px]">
                                                     {tx.expand.category.name}
@@ -362,7 +368,9 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({ accountId,
                             </span>
                         </div>
                         <div className="text-sm text-muted-foreground">
-                            {format(parseISO(transactionToDelete.date), 'MMM d, yyyy')} • {transactionToDelete.expand?.category?.name || 'Uncategorized'}
+                            {transactionToDelete.date && !isNaN(parseISO(transactionToDelete.date).getTime())
+                                ? format(parseISO(transactionToDelete.date), 'MMM d, yyyy')
+                                : 'Unknown Date'} • {transactionToDelete.expand?.category?.name || 'Uncategorized'}
                         </div>
                     </div>
                 )}

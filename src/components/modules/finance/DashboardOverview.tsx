@@ -161,7 +161,12 @@ export function DashboardOverview() {
                                                     </div>
                                                     <div className="min-w-0">
                                                         <div className="text-sm font-medium text-foreground truncate">{tx.payee || 'Unknown Payee'}</div>
-                                                        <div className="text-xs text-muted-foreground mt-0.5">{format(new Date(tx.date), 'MMM d')} • {tx.expand?.account?.name || 'Account'}</div>
+                                                        <div className="text-xs text-muted-foreground mt-0.5">
+                                                            {tx.date && !isNaN(new Date(tx.date).getTime())
+                                                                ? format(new Date(tx.date), 'MMM d')
+                                                                : 'Unknown Date'}
+                                                            • {tx.expand?.account?.name || 'Account'}
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center w-full sm:w-auto pl-11 sm:pl-0">

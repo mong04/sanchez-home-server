@@ -37,7 +37,9 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
             setCategoryId(transaction.category || '');
             setAmount(Math.abs(transaction.amount || 0).toString());
             setPayee(transaction.payee || '');
-            setDate(transaction.date ? format(new Date(transaction.date), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'));
+            setDate(transaction.date && !isNaN(new Date(transaction.date).getTime())
+                ? format(new Date(transaction.date), 'yyyy-MM-dd')
+                : format(new Date(), 'yyyy-MM-dd'));
             setNotes(transaction.notes || '');
             setType((transaction.amount || 0) >= 0 ? 'income' : 'expense');
         }

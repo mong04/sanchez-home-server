@@ -277,9 +277,10 @@ export function useDeleteCategory() {
 // ─── Budget Month Queries ───────────────────────────────────────
 
 export function useBudgetMonth(month: string) {
+    const { adapter } = useBackend();
     return useQuery({
         queryKey: [Collections.BudgetMonths, month],
-        queryFn: () => getOrCreateBudgetMonth(month),
+        queryFn: () => getOrCreateBudgetMonth(month, adapter),
     });
 }
 

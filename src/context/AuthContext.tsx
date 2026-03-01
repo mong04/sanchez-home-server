@@ -33,6 +33,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     const [profiles, setProfiles] = useState<User[]>([]);
 
+    const [isInitialized, setIsInitialized] = useState(false);
+
     useEffect(() => {
         const unsubscribe = adapter.onAuthStateChange(async (currentUser) => {
             const currentToken = adapter.getToken();
@@ -68,11 +70,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setProfiles([]);
                 localStorage.removeItem('sfos_user');
             }
+
+            setIsInitialized(true);
         });
 
+        // Trigger an initial check in case the async adapter resolution already finished
+        // before this effect mounted.
         const currentToken = adapter.getToken();
         const currentUser = adapter.getCurrentUser();
+
         if (currentToken && currentUser) {
+            setIsAuthenticated(true);
+            setIsInitialized(true);
             Cookies.set('auth_token', currentToken, {
                 secure: window.location.protocol === 'https:',
                 sameSite: 'Strict',
@@ -91,7 +100,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             });
         }
 
-        return () => unsubscribe();
+        // Failsafe: if we don't get a timely auth state change, assume we are initialized (unauthenticated)
+        const timeout = setTimeout(() => setIsInitialized(true), 1500);
+
+        return () => {
+            unsubscribe();
+            clearTimeout(timeout);
+        };
     }, [adapter]);
 
     const getPartyKitUrl = () => {
@@ -225,6 +240,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             throw new Error(error.message || "Failed to update password");
         }
     };
+
+    if (!isInitialized) {
+        return (
+            <div className="min-h-screen w-full flex items-center justify-center bg-background">
+                <div className="w-8 h-8 rounded-full border-4 border-primary/30 border-t-primary animate-spin"></div>
+            </div>
+        );
+    }
 
     return (
         <AuthContext.Provider value={{

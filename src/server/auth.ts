@@ -115,17 +115,65 @@ export async function verifyPocketBaseToken(token: string, pbUrl?: string): Prom
 }
 
 /**
+ * Verifies a Supabase Auth Token by calling the Supabase API.
+ */
+export async function verifySupabaseToken(token: string, supabaseUrl?: string, supabaseAnonKey?: string): Promise<JWTPayload | null> {
+    if (!supabaseUrl) return null;
+
+    try {
+        const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'apikey': supabaseAnonKey || '',
+            }
+        });
+
+        if (!response.ok) {
+            console.error(`❌ [Auth] Supabase Token invalid. Status: ${response.status}`);
+            return null;
+        }
+
+        const user = await response.json() as any;
+
+        return {
+            sub: user.id,
+            name: user.user_metadata?.name || user.email?.split('@')[0] || 'Unknown',
+            role: user.user_metadata?.role || 'parent',
+            partykit_id: user.user_metadata?.partykit_id
+        };
+    } catch (error) {
+        console.error(`❌ [Auth] Supabase Connection Failed:`, error);
+        return null;
+    }
+}
+
+/**
  * Universal verify function.
- * Tries local token first (faster), then PocketBase token.
+ * Tries local token first (faster), then Supabase, then PocketBase.
  * @param secret - The signing secret (pass from this.room.env in PartyKit)
  */
-export async function verifyToken(token: string, pbUrl?: string, secret?: string): Promise<JWTPayload | null> {
+export async function verifyToken(
+    token: string,
+    config: {
+        pbUrl?: string;
+        supabaseUrl?: string;
+        supabaseAnonKey?: string;
+    },
+    secret?: string
+): Promise<JWTPayload | null> {
     // 1. Try local (checks signature locally)
     const local = await verifyLocalToken(token, secret);
     if (local) return local;
 
-    // 2. Try PocketBase (remote check)
-    return await verifyPocketBaseToken(token, pbUrl);
+    // 2. Try Supabase (remote check)
+    if (config.supabaseUrl) {
+        const supabase = await verifySupabaseToken(token, config.supabaseUrl, config.supabaseAnonKey);
+        if (supabase) return supabase;
+    }
+
+    // 3. Try PocketBase (remote check)
+    return await verifyPocketBaseToken(token, config.pbUrl);
 }
 
 

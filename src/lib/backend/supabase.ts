@@ -58,8 +58,23 @@ export class SupabaseAdapter implements BackendAdapter {
     }
 
     // ─── CRUD ─────────────────────────────────────────────────────
+    private buildSelect(expand?: string): string {
+        if (!expand) return '*';
+
+        const relations = expand.split(',')
+            .map(r => r.trim())
+            .filter(Boolean)
+            .map(r => {
+                const dbName = this.FIELD_MAP[r] || r;
+                return `${dbName}(*)`;
+            });
+
+        return `*, ${relations.join(', ')}`;
+    }
+
     async getOne<T>(collection: string, id: string, options?: { expand?: string }) {
-        const query = this.supabase.from(collection).select(options?.expand ?? '*').eq('id', id).single();
+        const selectStr = this.buildSelect(options?.expand);
+        const query = this.supabase.from(collection).select(selectStr).eq('id', id).single();
         const { data, error } = await query;
         if (error) throw error;
         return this.toFrontend(data) as T;
@@ -73,9 +88,10 @@ export class SupabaseAdapter implements BackendAdapter {
         const from = (page - 1) * perPage;
         const to = from + perPage - 1;
 
+        const selectStr = this.buildSelect(options?.expand);
         let query = this.supabase
             .from(collection)
-            .select(options?.expand ?? '*', { count: 'exact' })
+            .select(selectStr, { count: 'exact' })
             .range(from, to);
 
         if (options?.sort) {
@@ -94,7 +110,8 @@ export class SupabaseAdapter implements BackendAdapter {
     async getFullList<T>(collection: string, options?: {
         filter?: string; sort?: string; expand?: string;
     }) {
-        let query = this.supabase.from(collection).select(options?.expand ?? '*');
+        const selectStr = this.buildSelect(options?.expand);
+        let query = this.supabase.from(collection).select(selectStr);
 
         if (options?.sort) {
             const desc = options.sort.startsWith('-');
@@ -146,14 +163,30 @@ export class SupabaseAdapter implements BackendAdapter {
         return result;
     }
 
-    // Helper to map lowercase (database) to camelCase (frontend)
+    // Helper to map lowercase (database) to camelCase (frontend) and extract relations into `expand`
     private toFrontend(obj: any): any {
         if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
         const result: any = {};
+        const expand: any = {};
+        let hasExpand = false;
+
         for (const [key, value] of Object.entries(obj)) {
             const mappedKey = this.REVERSE_FIELD_MAP[key] || key;
-            result[mappedKey] = value;
+
+            // If the value is an object with an 'id', it's an expanded relation from Supabase
+            if (value && typeof value === 'object' && !Array.isArray(value) && 'id' in value) {
+                expand[mappedKey] = this.toFrontend(value);
+                result[mappedKey] = value.id;
+                hasExpand = true;
+            } else {
+                result[mappedKey] = value;
+            }
         }
+
+        if (hasExpand) {
+            result.expand = expand;
+        }
+
         return result;
     }
 

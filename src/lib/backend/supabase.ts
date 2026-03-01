@@ -62,7 +62,7 @@ export class SupabaseAdapter implements BackendAdapter {
         const query = this.supabase.from(collection).select(options?.expand ?? '*').eq('id', id).single();
         const { data, error } = await query;
         if (error) throw error;
-        return this.toCamel(data) as T;
+        return this.toFrontend(data) as T;
     }
 
     async getList<T>(collection: string, options?: {
@@ -87,7 +87,7 @@ export class SupabaseAdapter implements BackendAdapter {
         const { data, count, error } = await query;
         if (error) throw error;
 
-        const mappedItems = (data ?? []).map(item => this.toCamel(item));
+        const mappedItems = (data ?? []).map(item => this.toFrontend(item));
         return { items: mappedItems as T[], total: count ?? 0 };
     }
 
@@ -104,7 +104,7 @@ export class SupabaseAdapter implements BackendAdapter {
 
         const { data, error } = await query;
         if (error) throw error;
-        return (data ?? []).map(item => this.toCamel(item)) as T[];
+        return (data ?? []).map(item => this.toFrontend(item)) as T[];
     }
 
     // Helper to match PocketBase's 15-char string IDs just in case frontend relies on it
@@ -114,24 +114,45 @@ export class SupabaseAdapter implements BackendAdapter {
             .join("");
     }
 
-    // Helper to map camelCase (frontend) to snake_case (database)
-    private toSnake(obj: any): any {
+    // Since Postgres folded our unquoted camelCase schema columns to lowercase 
+    // (e.g., initialBalance -> initialbalance), we need a strict dictionary to map them back and forth.
+    private FIELD_MAP: Record<string, string> = {
+        'emailVisibility': 'emailvisibility',
+        'initialBalance': 'initialbalance',
+        'initialBalanceDate': 'initialbalancedate',
+        'isSystem': 'issystem',
+        'isRecurring': 'isrecurring',
+        'dueDay': 'dueday',
+        'startDate': 'startdate',
+        'expirationTime': 'expirationtime',
+        'userId': 'userid',
+        'transferGroupId': 'transfergroupid',
+        'createdBy': 'createdby',
+        'splitGroupId': 'splitgroupid',
+        'isIncome': 'isincome',
+    };
+
+    private REVERSE_FIELD_MAP: Record<string, string> = Object.entries(this.FIELD_MAP)
+        .reduce((acc, [k, v]) => ({ ...acc, [v]: k }), {});
+
+    // Helper to map camelCase (frontend) to lowercase (database)
+    private toSupabase(obj: any): any {
         if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
         const result: any = {};
         for (const [key, value] of Object.entries(obj)) {
-            const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
-            result[snakeKey] = value;
+            const mappedKey = this.FIELD_MAP[key] || key;
+            result[mappedKey] = value;
         }
         return result;
     }
 
-    // Helper to map snake_case (database) to camelCase (frontend)
-    private toCamel(obj: any): any {
+    // Helper to map lowercase (database) to camelCase (frontend)
+    private toFrontend(obj: any): any {
         if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
         const result: any = {};
         for (const [key, value] of Object.entries(obj)) {
-            const camelKey = key.replace(/_([a-z])/g, g => g[1].toUpperCase());
-            result[camelKey] = value;
+            const mappedKey = this.REVERSE_FIELD_MAP[key] || key;
+            result[mappedKey] = value;
         }
         return result;
     }
@@ -143,21 +164,21 @@ export class SupabaseAdapter implements BackendAdapter {
             payload.id = this.generateId();
         }
 
-        const snakePayload = this.toSnake(payload);
+        const mappedPayload = this.toSupabase(payload);
 
-        const { data: result, error } = await this.supabase.from(collection).insert(snakePayload).select().single();
+        const { data: result, error } = await this.supabase.from(collection).insert(mappedPayload).select().single();
         if (error) {
-            console.error(`❌ [SupabaseAdapter] Failed to create in ${collection}:`, error, 'Payload:', snakePayload);
+            console.error(`❌ [SupabaseAdapter] Failed to create in ${collection}:`, error, 'Payload:', mappedPayload);
             throw error;
         }
-        return this.toCamel(result) as T;
+        return this.toFrontend(result) as T;
     }
 
     async update<T>(collection: string, id: string, data: Partial<T>) {
-        const snakePayload = this.toSnake(data);
-        const { data: result, error } = await this.supabase.from(collection).update(snakePayload).eq('id', id).select().single();
+        const mappedPayload = this.toSupabase(data);
+        const { data: result, error } = await this.supabase.from(collection).update(mappedPayload).eq('id', id).select().single();
         if (error) throw error;
-        return this.toCamel(result) as T;
+        return this.toFrontend(result) as T;
     }
 
     async delete(collection: string, id: string) {

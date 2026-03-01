@@ -5,6 +5,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { BackendAdapter, User, ExportDump, ImportResult, PushPayload } from './types';
 import { COLLECTIONS } from './collections';
+import { FIELD_MAP, REVERSE_FIELD_MAP } from './field-map';
 
 export class SupabaseAdapter implements BackendAdapter {
     private supabase: SupabaseClient;
@@ -65,11 +66,41 @@ export class SupabaseAdapter implements BackendAdapter {
             .map(r => r.trim())
             .filter(Boolean)
             .map(r => {
-                const dbName = this.FIELD_MAP[r] || r;
+                const dbName = FIELD_MAP[r] || r;
                 return `${dbName}(*)`;
             });
 
         return `*, ${relations.join(', ')}`;
+    }
+
+    private applyFilter(query: any, filterStr: string) {
+        if (!filterStr) return query;
+        // e.g., 'account = "abc" && cleared = true'
+        const parts = filterStr.split('&&').map(p => p.trim()).filter(Boolean);
+        for (const part of parts) {
+            const match = part.match(/^([\w]+)\s*(=|!=|>|<|>=|<=)\s*(.*)$/);
+            if (match) {
+                const [, key, op, valStr] = match;
+                const dbKey = FIELD_MAP[key] || key;
+                let value: any = valStr;
+
+                // remove surrounding quotes
+                if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1);
+                else if (value.startsWith("'") && value.endsWith("'")) value = value.slice(1, -1);
+                else if (value === 'true') value = true;
+                else if (value === 'false') value = false;
+                else if (value === 'null') value = null;
+                else if (!isNaN(Number(value))) value = Number(value);
+
+                if (op === '=') query = query.eq(dbKey, value);
+                else if (op === '!=') query = query.neq(dbKey, value);
+                else if (op === '>') query = query.gt(dbKey, value);
+                else if (op === '<') query = query.lt(dbKey, value);
+                else if (op === '>=') query = query.gte(dbKey, value);
+                else if (op === '<=') query = query.lte(dbKey, value);
+            }
+        }
+        return query;
     }
 
     async getOne<T>(collection: string, id: string, options?: { expand?: string }) {
@@ -77,7 +108,7 @@ export class SupabaseAdapter implements BackendAdapter {
         const query = this.supabase.from(collection).select(selectStr).eq('id', id).single();
         const { data, error } = await query;
         if (error) throw error;
-        return this.toFrontend(data) as T;
+        return this.toFrontend(data, collection) as T;
     }
 
     async getList<T>(collection: string, options?: {
@@ -94,6 +125,10 @@ export class SupabaseAdapter implements BackendAdapter {
             .select(selectStr, { count: 'exact' })
             .range(from, to);
 
+        if (options?.filter) {
+            query = this.applyFilter(query, options.filter);
+        }
+
         if (options?.sort) {
             const desc = options.sort.startsWith('-');
             const col = desc ? options.sort.slice(1) : options.sort;
@@ -103,7 +138,7 @@ export class SupabaseAdapter implements BackendAdapter {
         const { data, count, error } = await query;
         if (error) throw error;
 
-        const mappedItems = (data ?? []).map(item => this.toFrontend(item));
+        const mappedItems = (data ?? []).map(item => this.toFrontend(item, collection));
         return { items: mappedItems as T[], total: count ?? 0 };
     }
 
@@ -113,6 +148,10 @@ export class SupabaseAdapter implements BackendAdapter {
         const selectStr = this.buildSelect(options?.expand);
         let query = this.supabase.from(collection).select(selectStr);
 
+        if (options?.filter) {
+            query = this.applyFilter(query, options.filter);
+        }
+
         if (options?.sort) {
             const desc = options.sort.startsWith('-');
             const col = desc ? options.sort.slice(1) : options.sort;
@@ -121,7 +160,7 @@ export class SupabaseAdapter implements BackendAdapter {
 
         const { data, error } = await query;
         if (error) throw error;
-        return (data ?? []).map(item => this.toFrontend(item)) as T[];
+        return (data ?? []).map(item => this.toFrontend(item, collection)) as T[];
     }
 
     // Helper to match PocketBase's 15-char string IDs just in case frontend relies on it
@@ -131,60 +170,48 @@ export class SupabaseAdapter implements BackendAdapter {
             .join("");
     }
 
-    // Since Postgres folded our unquoted camelCase schema columns to lowercase 
-    // (e.g., initialBalance -> initialbalance), we need a strict dictionary to map them back and forth.
-    private FIELD_MAP: Record<string, string> = {
-        'emailVisibility': 'emailvisibility',
-        'initialBalance': 'initialbalance',
-        'initialBalanceDate': 'initialbalancedate',
-        'isSystem': 'issystem',
-        'isRecurring': 'isrecurring',
-        'dueDay': 'dueday',
-        'startDate': 'startdate',
-        'expirationTime': 'expirationtime',
-        'userId': 'userid',
-        'transferGroupId': 'transfergroupid',
-        'createdBy': 'createdby',
-        'splitGroupId': 'splitgroupid',
-        'isIncome': 'isincome',
-    };
-
-    private REVERSE_FIELD_MAP: Record<string, string> = Object.entries(this.FIELD_MAP)
-        .reduce((acc, [k, v]) => ({ ...acc, [v]: k }), {});
-
     // Helper to map camelCase (frontend) to lowercase (database)
     private toSupabase(obj: any): any {
         if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
         const result: any = {};
         for (const [key, value] of Object.entries(obj)) {
-            const mappedKey = this.FIELD_MAP[key] || key;
+            const mappedKey = FIELD_MAP[key] || key;
             result[mappedKey] = value;
         }
         return result;
     }
 
     // Helper to map lowercase (database) to camelCase (frontend) and extract relations into `expand`
-    private toFrontend(obj: any): any {
+    private toFrontend(obj: any, collectionName?: string): any {
         if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
         const result: any = {};
         const expand: any = {};
         let hasExpand = false;
 
+        const numericFields = ['amount', 'initialBalance', 'income', 'rollover', 'expirationTime'];
+
         for (const [key, value] of Object.entries(obj)) {
-            const mappedKey = this.REVERSE_FIELD_MAP[key] || key;
+            const mappedKey = REVERSE_FIELD_MAP[key] || key;
 
             // If the value is an object with an 'id', it's an expanded relation from Supabase
             if (value && typeof value === 'object' && !Array.isArray(value) && 'id' in value) {
-                expand[mappedKey] = this.toFrontend(value);
+                // Try to infer the collection name by pluralizing the mapped key
+                const relCollection = collectionName ? `${mappedKey}s` : undefined;
+                expand[mappedKey] = this.toFrontend(value, relCollection);
                 result[mappedKey] = value.id;
                 hasExpand = true;
             } else {
-                result[mappedKey] = value;
+                result[mappedKey] = numericFields.includes(mappedKey) && value !== null ? Number(value) : value;
             }
         }
 
         if (hasExpand) {
             result.expand = expand;
+        }
+
+        if (collectionName) {
+            result.collectionName = collectionName;
+            result.collectionId = `mock-${collectionName}`;
         }
 
         return result;
@@ -204,14 +231,14 @@ export class SupabaseAdapter implements BackendAdapter {
             console.error(`❌ [SupabaseAdapter] Failed to create in ${collection}:`, error, 'Payload:', mappedPayload);
             throw error;
         }
-        return this.toFrontend(result) as T;
+        return this.toFrontend(result, collection) as T;
     }
 
     async update<T>(collection: string, id: string, data: Partial<T>) {
         const mappedPayload = this.toSupabase(data);
         const { data: result, error } = await this.supabase.from(collection).update(mappedPayload).eq('id', id).select().single();
         if (error) throw error;
-        return this.toFrontend(result) as T;
+        return this.toFrontend(result, collection) as T;
     }
 
     async delete(collection: string, id: string) {

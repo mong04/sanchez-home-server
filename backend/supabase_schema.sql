@@ -182,6 +182,26 @@ CREATE POLICY "Users can manage all transactions" ON transactions FOR ALL USING 
 -- Note: The policies above assume a shared family workspace where family members 
 -- have access to viewing and managing shared resources, mirroring PocketBase auth rules `id != ""` 
 
+-- recurring_transactions
+CREATE TABLE IF NOT EXISTS recurring_transactions (
+    id TEXT PRIMARY KEY,
+    owner TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    templateTransactionId TEXT NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+    frequency TEXT NOT NULL CHECK (frequency IN ('weekly', 'biweekly', 'monthly', 'yearly')),
+    nextDate DATE NOT NULL,
+    autoApply BOOLEAN DEFAULT FALSE,
+    notes TEXT,
+    created TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE recurring_transactions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view all recurring_transactions" ON recurring_transactions;
+CREATE POLICY "Users can view all recurring_transactions" ON recurring_transactions FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can manage all recurring_transactions" ON recurring_transactions;
+CREATE POLICY "Users can manage all recurring_transactions" ON recurring_transactions FOR ALL USING (true);
+
+
 -- ==========================================
 -- 4. AUTH TRIGGER (Sync auth.users to public.users)
 -- ==========================================

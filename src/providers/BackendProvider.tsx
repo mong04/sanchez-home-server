@@ -39,10 +39,11 @@ function getStoredConfig(): BackendConfig {
         }
     }
 
-    // Default: PocketBase (stable local dev)
+    // Default: Supabase (cloud-first onboarding)
     return {
-        type: 'pocketbase',
-        url: import.meta.env.VITE_POCKETBASE_URL ?? 'http://127.0.0.1:8090',
+        type: 'supabase',
+        url: import.meta.env.VITE_SUPABASE_URL ?? '',
+        publishableKey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? '',
     };
 }
 
@@ -56,6 +57,8 @@ export function BackendProvider({ children }: { children: ReactNode }) {
     const [adapter, setAdapter] = useState<BackendAdapter>(globalAdapter);
 
     useEffect(() => {
+        console.log(`[SFOS] Active Backend: ${config.type.toUpperCase()}`);
+
         // Only recreate the adapter if the config actually changes (e.g. switchBackend is called)
         // Otherwise, we end up dropping the first initialized connection instance.
         const cachedConfig = localStorage.getItem('sfos_backend_config');
@@ -71,6 +74,7 @@ export function BackendProvider({ children }: { children: ReactNode }) {
 
     const switchBackend = async (newConfig: BackendConfig) => {
         // TODO (future): call old adapter.signOut() before switching for clean re-auth
+        console.log(`[SFOS] Switching backend to: ${newConfig.type.toUpperCase()}`);
         setConfig(newConfig);
     };
 

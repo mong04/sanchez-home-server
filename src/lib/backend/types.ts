@@ -24,7 +24,8 @@ export interface User {
 
 export interface BackendAdapter {
     // ─── Auth ───────────────────────────────────────────────────────
-    signIn(email: string, password: string): Promise<{ user: User; token: string }>;
+    initializeAuth(): Promise<{ user: User | null; token: string | null }>;
+    signIn(email: string, password: string): Promise<{ user: User | null; token: string | null }>;
     signOut(): Promise<void>;
     getCurrentUser(): User | null;
     getToken(): string | null;

@@ -459,7 +459,7 @@ export function TransactionFab() {
                             mb-0 md:mb-4 w-full md:w-[380px] border border-border
                             fixed md:relative bottom-0 right-0 left-0 md:bottom-auto md:right-auto md:left-auto
                             rounded-t-3xl md:rounded-3xl
-                            h-auto max-h-[90vh] md:max-h-[600px]
+                            max-h-[90vh] h-full sm:h-auto sm:max-h-[85vh] md:max-h-[600px]
                             z-50
                         "
                     >
@@ -587,13 +587,13 @@ export function TransactionFab() {
                                             </div>
 
                                             {/* Amount Display */}
-                                            <div className="flex flex-col items-center w-full px-6 gap-4">
+                                            <div className="flex flex-col items-center w-full px-6 gap-2 sm:gap-4 shrink overflow-y-auto">
                                                 <div
                                                     onClick={() => setActiveInput('main')}
-                                                    className={`w-full flex justify-center items-baseline pb-2 border-b-2 transition-colors ${activeInput === 'main' ? 'border-primary' : 'border-transparent opacity-50'}`}
+                                                    className={`w-full flex justify-center items-baseline pb-2 border-b-2 transition-colors shrink-0 ${activeInput === 'main' ? 'border-primary' : 'border-transparent opacity-50'}`}
                                                 >
                                                     <span className="text-3xl text-muted-foreground/50 mr-1 font-semibold">$</span>
-                                                    <span className="text-6xl font-bold tracking-tight text-foreground truncate">{amountStr}</span>
+                                                    <span className="text-5xl sm:text-6xl font-bold tracking-tight text-foreground truncate">{amountStr}</span>
                                                 </div>
 
                                                 {/* Split Amount Display */}
@@ -656,14 +656,22 @@ export function TransactionFab() {
                                         </div>
 
                                         {/* Numpad & Submit Area */}
-                                        <div className="flex flex-col shrink-0 mt-auto">
+                                        <div className="flex flex-col shrink-0 mt-auto shadow-2xl z-10">
                                             <div className="grid grid-cols-3 gap-[1px] bg-border/50">
                                                 {keypad.flat().map((key) => (
                                                     <motion.button
                                                         key={key}
                                                         whileTap={{ scale: 0.95, backgroundColor: 'hsl(var(--muted))' }}
-                                                        onClick={() => handleKeypadPress(key)}
-                                                        className="bg-background h-14 sm:h-16 flex items-center justify-center text-2xl font-medium text-foreground hover:bg-muted active:bg-accent transition-colors origin-center"
+                                                        onKeyDown={(e) => {
+                                                            // Prevent default Enter action if button is focused so we don't double-fire
+                                                            // with the global keydown listener!
+                                                            if (e.key === 'Enter') e.preventDefault();
+                                                        }}
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            handleKeypadPress(key);
+                                                        }}
+                                                        className="bg-background h-12 sm:h-14 md:h-16 flex items-center justify-center text-2xl font-medium text-foreground hover:bg-muted active:bg-accent transition-colors origin-center"
                                                     >
                                                         {key === 'backspace' ? <X className="w-6 h-6" /> : key}
                                                     </motion.button>
@@ -673,7 +681,7 @@ export function TransactionFab() {
                                             <button
                                                 onClick={handleNext}
                                                 disabled={parseFloat(amountStr) <= 0 || (isSplit && parseFloat(splitAmountStr) >= parseFloat(amountStr))}
-                                                className="w-full h-16 sm:h-16 bg-primary hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground text-primary-foreground text-lg font-bold transition-colors flex items-center justify-center shrink-0"
+                                                className="w-full h-14 sm:h-16 bg-primary hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground text-primary-foreground text-lg font-bold transition-colors flex items-center justify-center shrink-0"
                                             >
                                                 Next
                                             </button>

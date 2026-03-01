@@ -18,6 +18,13 @@ export class PocketBaseAdapter implements BackendAdapter {
     }
 
     // ─── Auth ─────────────────────────────────────────────────────
+    async initializeAuth() {
+        return {
+            user: this.getCurrentUser(),
+            token: this.getToken()
+        };
+    }
+
     async signIn(email: string, password: string) {
         const result = await this.pb.collection(COLLECTIONS.USERS).authWithPassword(email, password);
         return {

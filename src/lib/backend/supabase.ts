@@ -14,11 +14,23 @@ export class SupabaseAdapter implements BackendAdapter {
 
     constructor(url: string, publishableKey: string, _authToken?: string) {
         this.supabase = createClient(url, publishableKey);
-        // Try to get initial session asynchronously
-        this.supabase.auth.getSession().then(({ data }) => {
+    }
+
+    async initializeAuth() {
+        // Explicitly await the initial session fetch to resolve race conditions
+        const { data, error } = await this.supabase.auth.getSession();
+        if (error) {
+            console.error('[SupabaseAdapter] Failed to initialize session:', error);
+            this.currentToken = null;
+            this.currentUser = null;
+        } else {
             this.currentToken = data.session?.access_token ?? null;
             this.currentUser = data.session?.user ? this.mapUser(data.session.user) : null;
-        });
+        }
+        return {
+            user: this.currentUser,
+            token: this.currentToken
+        };
     }
 
     getToken(): string | null {

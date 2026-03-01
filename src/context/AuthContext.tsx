@@ -36,7 +36,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [isInitialized, setIsInitialized] = useState(false);
 
     useEffect(() => {
+        let isMounted = true;
+
+        const initAuth = async () => {
+            try {
+                // Wait for the adapter to confidently resolve the initial session
+                const { user: currentUser, token: currentToken } = await adapter.initializeAuth();
+
+                if (!isMounted) return;
+
+                if (currentToken && currentUser) {
+                    setIsAuthenticated(true);
+                    setToken(currentToken);
+                    Cookies.set('auth_token', currentToken, {
+                        secure: window.location.protocol === 'https:',
+                        sameSite: 'Strict',
+                        expires: 7
+                    });
+                    updateProviderToken(currentToken);
+
+                    const fetchedProfiles = await fetchProfiles(currentToken);
+                    const pkId = (currentUser as any).partykit_id;
+                    if (pkId) {
+                        const profile = fetchedProfiles.find(p => p.id === pkId);
+                        if (profile) {
+                            setUser(profile);
+                            localStorage.setItem('sfos_user', JSON.stringify(profile));
+                        }
+                    } else {
+                        setUser(currentUser as User);
+                    }
+                } else {
+                    // Confirmed no session
+                    setIsAuthenticated(false);
+                    setToken(null);
+                    setUser(null);
+                    setProfiles([]);
+                    Cookies.remove('auth_token');
+                    localStorage.removeItem('sfos_user');
+                }
+            } catch (error) {
+                console.error('[AuthContext] Failed to initialize auth:', error);
+            } finally {
+                if (isMounted) setIsInitialized(true);
+            }
+        };
+
+        initAuth();
+
         const unsubscribe = adapter.onAuthStateChange(async (currentUser) => {
+            if (!isMounted || !isInitialized) return; // Ignore mid-init flutter
+
             const currentToken = adapter.getToken();
             console.log('🔐 [Auth] Backend State Change:', { valid: !!currentToken, user: currentUser?.email });
 
@@ -70,42 +120,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setProfiles([]);
                 localStorage.removeItem('sfos_user');
             }
-
-            setIsInitialized(true);
         });
 
-        // Trigger an initial check in case the async adapter resolution already finished
-        // before this effect mounted.
-        const currentToken = adapter.getToken();
-        const currentUser = adapter.getCurrentUser();
-
-        if (currentToken && currentUser) {
-            setIsAuthenticated(true);
-            setIsInitialized(true);
-            Cookies.set('auth_token', currentToken, {
-                secure: window.location.protocol === 'https:',
-                sameSite: 'Strict',
-                expires: 7
-            });
-            updateProviderToken(currentToken);
-            fetchProfiles(currentToken).then((fetchedProfiles) => {
-                const pkId = (currentUser as any).partykit_id;
-                if (pkId) {
-                    const profile = fetchedProfiles.find(p => p.id === pkId);
-                    if (profile) {
-                        setUser(profile);
-                        localStorage.setItem('sfos_user', JSON.stringify(profile));
-                    }
-                }
-            });
-        }
-
-        // Failsafe: if we don't get a timely auth state change, assume we are initialized (unauthenticated)
-        const timeout = setTimeout(() => setIsInitialized(true), 1500);
-
         return () => {
+            isMounted = false;
             unsubscribe();
-            clearTimeout(timeout);
         };
     }, [adapter]);
 

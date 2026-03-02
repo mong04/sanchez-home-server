@@ -12,8 +12,30 @@ export class SupabaseAdapter implements BackendAdapter {
     private currentToken: string | null = null;
     private currentUser: User | null = null;
 
-    constructor(url: string, publishableKey: string, _authToken?: string) {
-        this.supabase = createClient(url, publishableKey);
+    constructor(url: string, publishableKey: string, authToken?: string) {
+        this.supabase = createClient(url, publishableKey, {
+            auth: {
+                autoRefreshToken: true,
+                persistSession: true,
+                detectSessionInUrl: false,
+            }
+        });
+
+        (window as any).supabase = this.supabase;
+
+        // Restore session from localStorage on init (critical for refresh persistence)
+        if (!authToken) {
+            this.supabase.auth.getSession().then(({ data: { session } }) => {
+                if (session) {
+                    this.supabase.auth.setSession({
+                        access_token: session.access_token,
+                        refresh_token: session.refresh_token
+                    });
+                }
+            });
+        } else {
+            this.supabase.auth.setSession({ access_token: authToken, refresh_token: '' });
+        }
     }
 
     async initializeAuth() {

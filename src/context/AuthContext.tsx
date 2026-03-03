@@ -28,8 +28,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [isAuthenticated, setIsAuthenticated] = useState(() => adapter.getCurrentUser() !== null);
     const [token, setToken] = useState(() => adapter.getToken());
     const [user, setUser] = useState<User | null>(() => {
-        const stored = localStorage.getItem('sfos_user');
-        return stored ? JSON.parse(stored) : null;
+        try {
+            const stored = localStorage.getItem('sfos_user');
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                if (parsed && typeof parsed === 'object' && 'id' in parsed) {
+                    return parsed as User;
+                }
+            }
+        } catch {
+            // invalid JSON 
+        }
+        return null;
     });
     const [profiles, setProfiles] = useState<User[]>([]);
 
@@ -65,6 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         }
                     } else {
                         setUser(currentUser as User);
+                        localStorage.setItem('sfos_user', JSON.stringify(currentUser));
                     }
                 } else {
                     // Confirmed no session
@@ -114,6 +125,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         setUser(profile);
                         localStorage.setItem('sfos_user', JSON.stringify(profile));
                     }
+                } else {
+                    setUser(currentUser as User);
+                    localStorage.setItem('sfos_user', JSON.stringify(currentUser));
                 }
             } else {
                 setUser(null);

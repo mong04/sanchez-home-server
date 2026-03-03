@@ -39,7 +39,7 @@ function getStoredConfig(): BackendConfig {
         }
     }
 
-    // Default: Supabase (cloud-first onboarding)
+    // Default: Supabase (Active Backend)
     return {
         type: 'supabase',
         url: import.meta.env.VITE_SUPABASE_URL ?? '',
@@ -57,24 +57,20 @@ export function BackendProvider({ children }: { children: ReactNode }) {
     const [adapter, setAdapter] = useState<BackendAdapter>(globalAdapter);
 
     useEffect(() => {
-        console.log(`[SFOS] Active Backend: ${config.type.toUpperCase()}`);
-
-        // Only recreate the adapter if the config actually changes (e.g. switchBackend is called)
-        // Otherwise, we end up dropping the first initialized connection instance.
+        // Just sync the current config to localStorage. 
+        // We do NOT want to recreate the `adapter` here because it destroys
+        // the instance that `protectedLoader` just carefully initialized.
         const cachedConfig = localStorage.getItem('sfos_backend_config');
-        const isDifferent = cachedConfig !== JSON.stringify(config);
-
-        if (isDifferent) {
-            const newAdapter = createAdapter(config);
-            setAdapter(newAdapter);
-            globalAdapter = newAdapter;
+        if (cachedConfig !== JSON.stringify(config)) {
             localStorage.setItem('sfos_backend_config', JSON.stringify(config));
         }
     }, [config]);
 
     const switchBackend = async (newConfig: BackendConfig) => {
-        // TODO (future): call old adapter.signOut() before switching for clean re-auth
         console.log(`[SFOS] Switching backend to: ${newConfig.type.toUpperCase()}`);
+        const newAdapter = createAdapter(newConfig);
+        setAdapter(newAdapter);
+        globalAdapter = newAdapter;
         setConfig(newConfig);
     };
 

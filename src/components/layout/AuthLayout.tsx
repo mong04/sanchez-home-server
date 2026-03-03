@@ -7,15 +7,19 @@ export function AuthLayout() {
     const { isAuthenticated, user } = useAuth();
     const navigate = useNavigate();
 
-    // 1. Runtime Guard: Redirect to login if auth state creates (e.g. logout)
+    // 1. Runtime Guard: Redirect to login if auth state clears (e.g. logout)
     useEffect(() => {
         if (!isAuthenticated) {
             navigate('/login');
         }
     }, [isAuthenticated, navigate]);
 
+    if (!isAuthenticated) {
+        return null;
+    }
+
     // 2. Authenticated but no profile -> Show Profile Selection/Setup
-    if (isAuthenticated && !user) {
+    if (!user) {
         return <ProfileSelection />;
     }
 

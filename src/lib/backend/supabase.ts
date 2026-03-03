@@ -67,9 +67,14 @@ export class SupabaseAdapter implements BackendAdapter {
     }
 
     async signOut() {
-        await this.supabase.auth.signOut();
-        this.currentToken = null;
-        this.currentUser = null;
+        try {
+            await this.supabase.auth.signOut();
+        } catch (error) {
+            console.error('[SupabaseAdapter] Failed to sign out from server, clearing local session anyway:', error);
+        } finally {
+            this.currentToken = null;
+            this.currentUser = null;
+        }
     }
 
     getCurrentUser(): User | null {

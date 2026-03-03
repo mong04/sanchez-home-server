@@ -4,12 +4,13 @@
 
 import { useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Edit2, Trash2, Calendar, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Edit2, Trash2, Calendar, CheckCircle2 } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
 import { formatCurrency } from '../../../../lib/utils';
 import { CategoryIcon } from '../../../common/CategoryIcon';
 import { PredictiveEmojiBar } from '../../../common/PredictiveEmojiBar';
 import { BudgetProgressBar } from './BudgetProgressBar';
+import { GoalProgressBar } from './GoalProgressBar';
 import { EditableBudgetCell } from './EditableBudgetCell';
 import type { CategoryRecord } from '../../../../types/pocketbase';
 import type { RecurringConfig } from '../../../../store/useRecurringStore';
@@ -25,6 +26,9 @@ interface BudgetCategoryRowProps {
     isPaid: boolean;
     dueText: string;
     recurringConfig: RecurringConfig | null;
+    isGoal: boolean;
+    targetAmount: number;
+    goalProgress: number;
     /** Controls which row's icon popover is visible (null = none) */
     iconPopoverCatId: string | null;
     /** Ref for outside-click detection of the popover */
@@ -55,6 +59,8 @@ export const BudgetCategoryRow = memo(function BudgetCategoryRow({
     isPaid,
     dueText,
     recurringConfig,
+    isGoal,
+    targetAmount,
     iconPopoverCatId,
     iconPopoverRef,
     onIconClick,
@@ -132,17 +138,30 @@ export const BudgetCategoryRow = memo(function BudgetCategoryRow({
 
                 <div className="flex flex-col min-w-0 flex-1">
                     <span className="font-medium text-sm text-foreground leading-tight break-words line-clamp-2">{cat.name}</span>
-                    <BudgetProgressBar spent={absSpent} budgeted={budgeted} showLabel className="mt-1 pr-2" />
+                    {isGoal ? (
+                        <GoalProgressBar targetAmount={targetAmount} savedAmount={finalAvailable} className="mt-1" />
+                    ) : (
+                        <BudgetProgressBar spent={absSpent} budgeted={budgeted} showLabel className="mt-1 pr-2" />
+                    )}
                     <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                        {isRecurring && (
+                        {isRecurring ? (
                             <span className="shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-muted text-[9px] text-muted-foreground uppercase tracking-wider font-semibold">
                                 <Calendar className="w-2.5 h-2.5" />
                                 <span>Recur</span>
                             </span>
-                        )}
+                        ) : isGoal ? (
+                            <span className="shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-primary/10 text-[9px] text-primary uppercase tracking-wider font-semibold">
+                                <span>Goal</span>
+                            </span>
+                        ) : null}
                         {isRecurring && recurringConfig?.amount && (
                             <span className={cn('text-[10px] truncate', isUnderGoal ? 'text-warning font-medium' : 'text-muted-foreground')}>
-                                Goal: {formatCurrency(recurringConfig.amount)}
+                                Bill: {formatCurrency(recurringConfig.amount)}
+                            </span>
+                        )}
+                        {isGoal && targetAmount > 0 && (
+                            <span className="text-[10px] text-muted-foreground truncate">
+                                Target: {formatCurrency(targetAmount)}
                             </span>
                         )}
                         {isRecurring && dueText && !isPaid && (
@@ -216,11 +235,10 @@ export const BudgetCategoryRow = memo(function BudgetCategoryRow({
                     {isOverspent && (
                         <button
                             onClick={() => onFix(cat)}
-                            aria-label={`Fix overspending in ${cat.name}`}
-                            className="text-[10px] bg-destructive text-destructive-foreground px-2.5 py-1 rounded-full font-semibold hover:opacity-80 transition-opacity flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            aria-label={`Cover overspending in ${cat.name}`}
+                            className="text-[10px] bg-primary text-primary-foreground px-3 py-1.5 rounded-full font-bold hover:bg-primary/90 transition-colors flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring shadow-sm"
                         >
-                            <AlertTriangle className="w-3 h-3" />
-                            Fix
+                            Cover
                         </button>
                     )}
                 </div>

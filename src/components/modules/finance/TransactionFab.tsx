@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, X, Check, Briefcase, SplitSquareHorizontal, ChevronDown, RotateCcw, Mic } from 'lucide-react';
-import { useAddTransaction, useCategories, useAccounts, useTransactions, useBudgetMonth, useUpdateBudgetMonth } from '../../../hooks/useFinanceData';
+import { useAddTransaction, useCategories, useAccounts, useTransactions } from '../../../hooks/useFinanceData';
 import { useFinanceStore } from '../../../stores/useFinanceStore';
 import { useBudgetYjs } from '../../../hooks/useBudgetYjs';
 import { formatCurrency } from '../../../lib/utils';
@@ -41,8 +41,6 @@ export function TransactionFab() {
     const addTransaction = useAddTransaction();
 
     const { currentMonth } = useFinanceStore();
-    const { data: budgetMonth } = useBudgetMonth(currentMonth);
-    const updateBudgetMonth = useUpdateBudgetMonth();
     const { allocations } = useBudgetYjs(currentMonth);
 
     // Set default account when accounts load
@@ -172,14 +170,6 @@ export function TransactionFab() {
                     cleared: false,
                     isIncome: true
                 });
-
-                // Auto-increase the month's income pool
-                if (budgetMonth?.id) {
-                    await updateBudgetMonth.mutateAsync({
-                        id: budgetMonth.id,
-                        data: { income: (budgetMonth.income || 0) + mainAmount }
-                    });
-                }
 
                 generateInsight("", mainAmount);
             } else if (!isSplit || categoryIds.length === 1) {
@@ -528,9 +518,9 @@ export function TransactionFab() {
                                         initial="enter"
                                         animate="center"
                                         exit="exit"
-                                        className="flex flex-col w-full"
+                                        className="flex flex-col w-full h-full min-h-0"
                                     >
-                                        <div className="flex flex-col items-center justify-center p-4 w-full">
+                                        <div className="flex flex-col items-center justify-center p-4 w-full shrink min-h-0">
 
                                             {/* Income / Expense Toggle */}
                                             <div className="bg-muted p-1 flex items-center justify-between rounded-full mb-6 w-full max-w-[200px] relative shadow-inner">
@@ -587,7 +577,7 @@ export function TransactionFab() {
                                             </div>
 
                                             {/* Amount Display */}
-                                            <div className="flex flex-col items-center w-full px-6 gap-2 sm:gap-4 shrink overflow-y-auto">
+                                            <div className="flex flex-col items-center w-full px-6 gap-2 sm:gap-4 shrink overflow-y-auto min-h-0 pb-2">
                                                 <div
                                                     onClick={() => setActiveInput('main')}
                                                     className={`w-full flex justify-center items-baseline pb-2 border-b-2 transition-colors shrink-0 ${activeInput === 'main' ? 'border-primary' : 'border-transparent opacity-50'}`}
@@ -656,7 +646,7 @@ export function TransactionFab() {
                                         </div>
 
                                         {/* Numpad & Submit Area */}
-                                        <div className="flex flex-col shrink-0 mt-auto shadow-2xl z-10">
+                                        <div className="flex flex-col shrink-0 mt-auto shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.3)] z-10">
                                             <div className="grid grid-cols-3 gap-[1px] bg-border/50">
                                                 {keypad.flat().map((key) => (
                                                     <motion.button

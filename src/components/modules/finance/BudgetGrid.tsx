@@ -146,14 +146,31 @@ export function BudgetGrid({ month }: BudgetGridProps) {
         markAsPaidThisMonth(categoryId, month);
     }, [categories, addTransaction, markAsPaidThisMonth, month]);
 
-    const handleEditCommit = useCallback((categoryId: string, name: string, icon: string, groupId: string) => {
-        updateCategory.mutate({ id: categoryId, data: { name, icon } });
+    const handleEditCommit = useCallback((categoryId: string, name: string, icon: string, groupId: string, isGoal: boolean, targetAmount: number, targetDate: string) => {
+        const data: Partial<CategoryRecord> = { name, icon };
+
+        // Priority #3: If edited to be a goal, update the amount field without affecting schema
+        if (isGoal) {
+            data.amount = targetAmount;
+            data.isRecurring = false;
+            data.frequency = undefined;
+            data.dueDay = undefined;
+            data.startDate = targetDate;
+        } else {
+            // If they turned off the goal toggle (and it wasn't recurring), clear the amount
+            const cat = categories?.find(c => c.id === categoryId);
+            if (cat && !cat.isRecurring) {
+                data.amount = 0;
+            }
+        }
+
+        updateCategory.mutate({ id: categoryId, data });
         // Save group override if changed from auto-detected
         const autoGroup = getGroupIdForCategory(name);
         if (groupId !== autoGroup || categoryGroupOverrides[categoryId]) {
             setCategoryGroupOverrides((prev) => ({ ...prev, [categoryId]: groupId }));
         }
-    }, [updateCategory, categoryGroupOverrides, setCategoryGroupOverrides]);
+    }, [updateCategory, categoryGroupOverrides, setCategoryGroupOverrides, categories]);
 
     const handleCreateCategory = useCallback(async (catData: Partial<CategoryRecord>) => {
         await createCategory.mutateAsync(catData);
@@ -243,9 +260,13 @@ export function BudgetGrid({ month }: BudgetGridProps) {
                                                             isPaid={d.isPaid}
                                                             dueText={d.dueText}
                                                             recurringConfig={d.recurringConfig}
+                                                            isGoal={d.isGoal}
+                                                            targetAmount={d.targetAmount}
+                                                            goalProgress={d.goalProgress}
                                                             isMobile={true}
                                                             onAllocationChange={handleAllocationChange}
                                                             onTap={openSheet}
+                                                            onEditName={handleEditName}
                                                             onDelete={handleDeleteCategory}
                                                             onMarkPaid={handleOpenMarkPaid}
                                                             onFix={handleFix}
@@ -305,6 +326,9 @@ export function BudgetGrid({ month }: BudgetGridProps) {
                                                             isPaid={d.isPaid}
                                                             dueText={d.dueText}
                                                             recurringConfig={d.recurringConfig}
+                                                            isGoal={d.isGoal}
+                                                            targetAmount={d.targetAmount}
+                                                            goalProgress={d.goalProgress}
                                                             onAllocationChange={handleAllocationChange}
                                                             onEditName={handleEditName}
                                                             onDelete={handleDeleteCategory}
@@ -421,7 +445,6 @@ export function BudgetGrid({ month }: BudgetGridProps) {
                         spent={d.absSpent}
                         onAllocationChange={handleAllocationChange}
                         recurringConfig={d.recurringConfig}
-                        dueText={d.dueText}
                         isPaid={d.isPaid}
                         isRecurring={d.isRecurring}
                         onMarkPaid={() => {

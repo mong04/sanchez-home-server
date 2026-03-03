@@ -71,6 +71,11 @@ vi.mock('../src/context/ThemeContext', () => ({
     useTheme: vi.fn(() => ({ theme: 'dark', setTheme: vi.fn() })),
 }));
 
+// Mock Finance hook that AppLayout uses
+vi.mock('../src/hooks/useFinanceData', () => ({
+    useNeedsReviewCount: vi.fn(() => ({ data: 0 })),
+}));
+
 // Stub components to avoid deep Yjs/hook dependencies during route tests
 function StubCommandCenter() { return <div data-testid="route-command-center">Command Center Module</div>; }
 function StubPlanner() { return <div data-testid="route-planner">Planner Module</div>; }

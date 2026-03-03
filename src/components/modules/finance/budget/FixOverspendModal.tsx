@@ -46,16 +46,16 @@ export function FixOverspendModal({
         <Modal
             isOpen={isOpen}
             onClose={onClose}
-            title={`Fix: ${overspentCat.name}`}
+            title={`Cover: ${overspentCat.name}`}
         >
             {donors.length === 0 ? (
                 <div className="p-4 text-sm text-muted-foreground text-center">
-                    No categories with available funds to cover this.
+                    No other categories with available funds to cover this.
                 </div>
             ) : (
                 <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground pb-1 font-medium">
-                        Move money from another category to cover the {formatCurrency(overspentAmount)} overspend:
+                    <p className="text-sm text-muted-foreground pb-4 font-medium px-1">
+                        Cover your <span className="text-foreground font-bold">{formatCurrency(overspentAmount)}</span> overspend in <span className="text-foreground font-bold">{overspentCat.name}</span> using money from...
                     </p>
                     {donors.map(({ cat, avail }) => {
                         const coverAmount = Math.min(avail, overspentAmount);
@@ -70,9 +70,9 @@ export function FixOverspendModal({
                                     <span className="text-sm font-medium text-foreground truncate">{cat.name}</span>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
-                                    <span className="text-xs text-success font-semibold tabular-nums">{formatCurrency(avail)}</span>
-                                    <span className="text-[10px] bg-primary text-primary-foreground px-2 py-0.5 rounded-full font-semibold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                                        Cover {formatCurrency(coverAmount)}
+                                    <span className="text-sm text-success font-semibold tabular-nums">{formatCurrency(avail)}</span>
+                                    <span className="text-xs bg-primary text-primary-foreground px-3 py-1 rounded-full font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-sm">
+                                        Use {formatCurrency(coverAmount)}
                                     </span>
                                 </div>
                             </button>

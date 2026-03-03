@@ -51,13 +51,47 @@ export function useCreateAccount() {
     return useMutation({
         mutationFn: async (newAccount: Partial<AccountRecord>) => {
             const user = adapter.getCurrentUser();
-            return await adapter.create<AccountRecord>(Collections.Accounts, {
+            const createdAccount = await adapter.create<AccountRecord>(Collections.Accounts, {
                 ...newAccount,
                 owner: user?.id,
             });
+
+            // Priority #1: Auto-generate Starting Balance transaction if initialBalance > 0
+            if (newAccount.initialBalance && newAccount.initialBalance > 0) {
+                try {
+                    // Find the system Income category
+                    const categories = await adapter.getFullList<CategoryRecord>(Collections.Categories, {
+                        filter: 'name="Income"',
+                    });
+                    const incomeCat = categories.find(c => c.name === 'Income');
+
+                    if (incomeCat) {
+                        await adapter.create<TransactionRecord>(Collections.Transactions, {
+                            amount: newAccount.initialBalance,
+                            date: new Date().toISOString(),
+                            payee: 'Starting Balance',
+                            category: incomeCat.id,
+                            account: createdAccount.id,
+                            isIncome: true,
+                            cleared: true,
+                            type: 'normal',
+                            createdBy: user?.id,
+                        } as Partial<TransactionRecord>);
+                    } else {
+                        console.warn('[useCreateAccount] Income category not found, skipping Starting Balance transaction.');
+                    }
+                } catch (e) {
+                    console.error('[useCreateAccount] Failed to create Starting Balance transaction:', e);
+                }
+            }
+
+            return createdAccount;
         },
         onSuccess: async () => {
             await queryClient.refetchQueries({ queryKey: [Collections.Accounts] });
+            // Invalidate to update BudgetGrid / TBB Ledger and Transaction list
+            await queryClient.invalidateQueries({ queryKey: [Collections.Transactions] });
+            await queryClient.invalidateQueries({ queryKey: [Collections.BudgetMonths] });
         },
     });
 }
@@ -160,6 +194,7 @@ export function useAddTransaction() {
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: [Collections.Transactions] });
             queryClient.invalidateQueries({ queryKey: [Collections.Accounts] });
+            queryClient.invalidateQueries({ queryKey: [Collections.BudgetMonths] });
         },
     });
 }
@@ -175,6 +210,7 @@ export function useUpdateTransaction() {
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: [Collections.Transactions] });
             queryClient.invalidateQueries({ queryKey: [Collections.Accounts] });
+            queryClient.invalidateQueries({ queryKey: [Collections.BudgetMonths] });
         },
     });
 }
@@ -190,6 +226,19 @@ export function useDeleteTransaction() {
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: [Collections.Transactions] });
             queryClient.invalidateQueries({ queryKey: [Collections.Accounts] });
+            queryClient.invalidateQueries({ queryKey: [Collections.BudgetMonths] });
+        },
+    });
+}
+
+export function useNeedsReviewCount() {
+    const { adapter } = useBackend();
+    return useQuery({
+        queryKey: [Collections.Transactions, 'needsReviewCount'],
+        queryFn: async () => {
+            // Lightweight count using the existing adapter capabilities
+            const result = await adapter.getFullList<TransactionRecord>(Collections.Transactions, {});
+            return result.filter(tx => tx.needsReview).length;
         },
     });
 }
@@ -205,6 +254,7 @@ export function useToggleCleared() {
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: [Collections.Transactions] });
             queryClient.invalidateQueries({ queryKey: [Collections.Accounts] });
+            queryClient.invalidateQueries({ queryKey: [Collections.BudgetMonths] });
         },
     });
 }

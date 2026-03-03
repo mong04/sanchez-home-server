@@ -34,6 +34,9 @@ export interface CategoryDerivedData {
     isUnderGoal: boolean;
     dueText: string;
     recurringConfig: RecurringConfig | null;
+    isGoal: boolean;
+    targetAmount: number;
+    goalProgress: number;
 }
 
 export function useBudgetGridData(month: string) {
@@ -175,7 +178,13 @@ export function useBudgetGridData(month: string) {
         const dueDate = isRecurring ? getUpcomingDueDate(cat, month) : null;
         const isUnderGoal = isRecurring && recurringConfig?.amount ? budgeted < recurringConfig.amount : false;
         const dueText = formatDueText(dueDate);
-        return { budgeted, absSpent, finalAvailable, isOverspent, isRecurring, isPaid, isUnderGoal, dueText, recurringConfig };
+
+        // Priority #3: Goals Logic
+        const targetAmount = (!cat.isRecurring && (cat.amount || 0) > 0) ? cat.amount! : 0;
+        const isGoal = targetAmount > 0;
+        const goalProgress = isGoal ? Math.min(100, Math.max(0, (finalAvailable / targetAmount) * 100)) : 0;
+
+        return { budgeted, absSpent, finalAvailable, isOverspent, isRecurring, isPaid, isUnderGoal, dueText, recurringConfig, isGoal, targetAmount, goalProgress };
     }, [localAllocations, spentByCategory, getRecurringForCategory, isDueThisMonth, isPaidThisMonth, getUpcomingDueDate, month, formatDueText]);
 
     // ─── Event handlers ───

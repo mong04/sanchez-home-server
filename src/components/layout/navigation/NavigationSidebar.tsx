@@ -16,16 +16,10 @@
  */
 import { NavLink } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
-import {
-    PanelLeftClose,
-    PanelLeftOpen,
-    User,
-    MessageSquare,
-    LogOut,
-    WifiOff,
-} from 'lucide-react';
+import { LogOut, WifiOff, PanelLeftClose, PanelLeftOpen, User, MessageSquare } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { useNavigationStore } from './useNavigationStore';
+import { useNeedsReviewCount } from '../../../hooks/useFinanceData';
 import {
     PRIMARY_NAV_ITEMS,
     SECONDARY_NAV_ITEMS,
@@ -81,6 +75,7 @@ export function NavigationSidebar({
 }: NavigationSidebarProps) {
     const { isSidebarCollapsed, toggleSidebar } = useNavigationStore();
     const prefersReduced = useReducedMotion();
+    const { data: needsReviewCount } = useNeedsReviewCount();
 
     const userRole = user?.role as UserRole | undefined;
     const primaryItems = filterByRole(PRIMARY_NAV_ITEMS, userRole);
@@ -141,6 +136,7 @@ export function NavigationSidebar({
                         key={item.path}
                         item={item}
                         collapsed={isSidebarCollapsed}
+                        badgeCount={item.label === 'Finance' && needsReviewCount ? needsReviewCount : 0}
                     />
                 ))}
 
@@ -328,9 +324,10 @@ interface NavLinkItemProps {
     item: (typeof PRIMARY_NAV_ITEMS)[number];
     collapsed: boolean;
     secondary?: boolean;
+    badgeCount?: number;
 }
 
-function NavLinkItem({ item, collapsed, secondary }: NavLinkItemProps) {
+function NavLinkItem({ item, collapsed, secondary, badgeCount }: NavLinkItemProps) {
     const Icon = item.icon;
 
     const linkClass = ({ isActive }: { isActive: boolean }) =>
@@ -364,7 +361,17 @@ function NavLinkItem({ item, collapsed, secondary }: NavLinkItemProps) {
                 aria-hidden="true"
             />
             {!collapsed && (
-                <span className="truncate text-sm">{item.label}</span>
+                <span className="truncate text-sm flex-1">{item.label}</span>
+            )}
+
+            {/* Global Badge */}
+            {!!badgeCount && badgeCount > 0 && !collapsed && (
+                <span className="bg-destructive text-destructive-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0">
+                    {badgeCount}
+                </span>
+            )}
+            {!!badgeCount && badgeCount > 0 && collapsed && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-destructive rounded-full border-2 border-card" />
             )}
         </>
     );

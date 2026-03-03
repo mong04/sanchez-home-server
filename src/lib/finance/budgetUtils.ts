@@ -18,7 +18,11 @@ export async function getOrCreateBudgetMonth(month: string, adapter: BackendAdap
             page: 1,
             perPage: 1
         });
-        if (items.length > 0) return items[0];
+        if (items.length > 0) {
+            const budget = items[0];
+            budget.income = await calculateIncomeForMonth(month, adapter);
+            return budget;
+        }
         throw new Error("Not found");
     } catch {
         // Month doesn't exist yet — create it
@@ -54,10 +58,18 @@ export async function getOrCreateBudgetMonth(month: string, adapter: BackendAdap
                 page: 1,
                 perPage: 1
             });
-            if (checkItems.length > 0) return checkItems[0];
-            return await adapter.create<BudgetMonthRecord>(Collections.BudgetMonths, newBudget);
+            if (checkItems.length > 0) {
+                const checkBudget = checkItems[0];
+                checkBudget.income = await calculateIncomeForMonth(month, adapter);
+                return checkBudget;
+            }
+            const created = await adapter.create<BudgetMonthRecord>(Collections.BudgetMonths, newBudget);
+            created.income = await calculateIncomeForMonth(month, adapter);
+            return created;
         } catch {
-            return await adapter.create<BudgetMonthRecord>(Collections.BudgetMonths, newBudget);
+            const created = await adapter.create<BudgetMonthRecord>(Collections.BudgetMonths, newBudget);
+            created.income = await calculateIncomeForMonth(month, adapter);
+            return created;
         }
     }
 }
@@ -86,6 +98,21 @@ export async function calculateSpentForCategory(categoryId: string, month: strin
 
     const txs = await adapter.getFullList<{ amount: number }>(Collections.Transactions, {
         filter: `category="${categoryId}" && date >= "${format(start, 'yyyy-MM-dd')}" && date <= "${format(end, 'yyyy-MM-dd')}"`,
+    });
+
+    return txs.reduce((sum, tx) => sum + Math.abs(tx.amount || 0), 0);
+}
+
+/**
+ * Calculates total income natively from the ledger for a given month.
+ */
+export async function calculateIncomeForMonth(month: string, adapter: BackendAdapter): Promise<number> {
+    const start = startOfMonth(new Date(`${month}-01`));
+    const end = endOfMonth(start);
+
+    // Sum all transaction where isIncome = true in this month
+    const txs = await adapter.getFullList<{ amount: number }>(Collections.Transactions, {
+        filter: `isIncome=true && date >= "${format(start, 'yyyy-MM-dd')}" && date <= "${format(end, 'yyyy-MM-dd')}"`,
     });
 
     return txs.reduce((sum, tx) => sum + Math.abs(tx.amount || 0), 0);

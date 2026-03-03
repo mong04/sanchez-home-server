@@ -16,7 +16,6 @@ interface BudgetBottomSheetProps {
     /** Called when user commits a new allocation */
     onAllocationChange: (categoryId: string, val: string) => void;
     recurringConfig: RecurringConfig | null;
-    dueText: string;
     isPaid: boolean;
     isRecurring: boolean;
     onMarkPaid: () => void;
@@ -41,6 +40,8 @@ export function BudgetBottomSheet({
 
     const absSpent = Math.abs(spent);
 
+
+
     // Initial sync of draft value when the sheet opens or category changes
     useEffect(() => {
         if (isOpen && category) {
@@ -51,6 +52,11 @@ export function BudgetBottomSheet({
     const draftNum = parseFloat(draft) || 0;
     const available = draftNum - absSpent;
     const isOverspent = available < 0;
+
+    // Derived flags
+    const isGoal = !isRecurring && category?.amount && category.amount > 0;
+    const targetAmount = category?.amount || 0;
+    const isMet = isGoal && available >= targetAmount;
     const isUnderGoal = isRecurring && recurringConfig?.amount ? draftNum < recurringConfig.amount : false;
 
     // Focus input on open
@@ -175,8 +181,18 @@ export function BudgetBottomSheet({
                                             </div>
                                         </div>
                                     )}
+                                    {isGoal ? (
+                                        <div className="col-span-2">
+                                            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Target Amount</div>
+                                            <div className={cn('text-sm font-semibold tabular-nums text-muted-foreground')}>
+                                                {formatCurrency(targetAmount)}
+                                            </div>
+                                        </div>
+                                    ) : null}
                                 </div>
                             </div>
+
+
 
                             {/* Large budget input */}
                             <div className="space-y-2">

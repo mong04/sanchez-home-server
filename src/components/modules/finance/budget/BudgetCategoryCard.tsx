@@ -4,13 +4,15 @@
 // Mobile: Tap-to-open-sheet card. No inline editing.
 // Uses `isMobile` prop to choose behavior.
 
-import { memo } from 'react';
-import { motion } from 'framer-motion';
-import { Calendar, CheckCircle2, AlertTriangle, Trash2 } from 'lucide-react';
+import { useState, memo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Calendar, CheckCircle2, Trash2, Edit2, MoreHorizontal } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
 import { formatCurrency } from '../../../../lib/utils';
 import { CategoryIcon } from '../../../common/CategoryIcon';
+import { Button } from '../../../common/Button';
 import { BudgetProgressBar } from './BudgetProgressBar';
+import { GoalProgressBar } from './GoalProgressBar';
 import { BudgetProgressRing } from './BudgetProgressRing';
 import { EditableBudgetCell } from './EditableBudgetCell';
 import type { CategoryRecord } from '../../../../types/pocketbase';
@@ -27,6 +29,9 @@ interface BudgetCategoryCardProps {
     isPaid: boolean;
     dueText: string;
     recurringConfig: RecurringConfig | null;
+    isGoal: boolean;
+    targetAmount: number;
+    goalProgress: number;
     /** Mobile = tap opens bottom sheet. Tablet = shows inline edit input. */
     isMobile: boolean;
     onAllocationChange: (catId: string, val: string) => void;
@@ -34,6 +39,7 @@ interface BudgetCategoryCardProps {
     onDelete: (catId: string) => void;
     onMarkPaid: (cat: CategoryRecord) => void;
     onFix: (cat: CategoryRecord) => void;
+    onEditName: (cat: CategoryRecord) => void;
 }
 
 export const BudgetCategoryCard = memo(function BudgetCategoryCard({
@@ -47,13 +53,18 @@ export const BudgetCategoryCard = memo(function BudgetCategoryCard({
     isPaid,
     dueText,
     recurringConfig,
+    isGoal,
+    targetAmount,
     isMobile,
     onAllocationChange,
     onTap,
     onDelete,
     onMarkPaid,
     onFix,
+    onEditName,
 }: BudgetCategoryCardProps) {
+    const [menuOpen, setMenuOpen] = useState(false);
+
     return (
         <motion.div
             key={cat.id}
@@ -97,17 +108,20 @@ export const BudgetCategoryCard = memo(function BudgetCategoryCard({
 
                 <div className="flex flex-col min-w-0 flex-1 gap-0.5">
                     {/* Name — full row width */}
-                    <span className="font-semibold text-foreground text-base leading-tight break-words line-clamp-2">{cat.name}</span>
-                    {/* Metadata line: badge + spend + goal + due */}
-                    <div className="flex items-center gap-1.5 flex-wrap text-xs text-muted-foreground">
-                        {isRecurring && (
+                    <div className="flex items-center gap-1.5 flex-wrap text-xs text-muted-foreground mt-0.5">
+                        {isRecurring ? (
                             <span className="inline-flex items-center gap-0.5 px-1.5 py-px rounded bg-muted text-[9px] uppercase tracking-wider font-semibold">
                                 <Calendar className="w-2.5 h-2.5" />
                             </span>
-                        )}
+                        ) : isGoal ? (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-px rounded bg-primary/10 text-[9px] text-primary uppercase tracking-wider font-semibold">
+                                <span>Goal</span>
+                            </span>
+                        ) : null}
                         <span>
-                            Spent {formatCurrency(absSpent)}
-                            {isRecurring && recurringConfig?.amount ? ` · Goal ${formatCurrency(recurringConfig.amount)}` : ''}
+                            {isGoal ? `Saved ${formatCurrency(finalAvailable)}` : `Spent ${formatCurrency(absSpent)}`}
+                            {isRecurring && recurringConfig?.amount ? ` · Bill ${formatCurrency(recurringConfig.amount)}` : ''}
+                            {isGoal && targetAmount > 0 ? ` · Target ${formatCurrency(targetAmount)}` : ''}
                         </span>
                         {isRecurring && dueText && !isPaid && (
                             <span className="text-[10px] text-muted-foreground/80">· {dueText}</span>
@@ -147,12 +161,11 @@ export const BudgetCategoryCard = memo(function BudgetCategoryCard({
             </div>
 
             {/* Progress bar */}
-            <BudgetProgressBar
-                spent={absSpent}
-                budgeted={budgeted}
-                showLabel
-                className="mt-3"
-            />
+            {isGoal ? (
+                <GoalProgressBar targetAmount={targetAmount} savedAmount={finalAvailable} targetDate={cat.startDate} className="mt-3" />
+            ) : (
+                <BudgetProgressBar spent={absSpent} budgeted={budgeted} showLabel className="mt-3" />
+            )}
 
             {/* Tablet: inline budget input */}
             {!isMobile && (
@@ -188,39 +201,107 @@ export const BudgetCategoryCard = memo(function BudgetCategoryCard({
             )}
 
             {/* Action buttons row */}
-            <div className="flex items-center gap-2 mt-3">
-                {isOverspent && (
-                    <button
-                        onClick={() => onFix(cat)}
-                        aria-label={`Fix overspending in ${cat.name}`}
-                        className="flex items-center gap-1.5 text-xs bg-destructive text-destructive-foreground px-3 py-1.5 rounded-full font-semibold hover:opacity-80 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                        <AlertTriangle className="w-3 h-3" /> Fix Overspend
-                    </button>
-                )}
-                {isRecurring && !isPaid && !isOverspent && (
-                    <button
-                        onClick={() => onMarkPaid(cat)}
-                        className="flex items-center gap-1.5 text-xs bg-primary/10 text-primary px-3 py-1.5 rounded-full font-semibold hover:bg-primary/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                        <CheckCircle2 className="w-3 h-3" /> Mark Paid
-                    </button>
-                )}
-                {isPaid && (
-                    <span className="text-xs flex items-center gap-1 text-success font-semibold">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Paid
-                    </span>
-                )}
-                <div className="ml-auto">
-                    <button
-                        onClick={() => onDelete(cat.id)}
-                        aria-label={`Delete ${cat.name}`}
-                        className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                        <Trash2 className="w-4 h-4" />
-                    </button>
+            {isMobile ? (
+                <div className="flex items-center h-8 mt-3 relative">
+                    {/* Primary visible state info on the left */}
+                    <div className="flex-1 flex gap-2">
+                        {isOverspent ? (
+                            <button
+                                onClick={() => onFix(cat)}
+                                className="flex items-center gap-1.5 text-xs bg-primary text-primary-foreground px-4 py-1.5 rounded-full font-bold hover:bg-primary/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring shadow-sm"
+                            >
+                                Cover Overspend
+                            </button>
+                        ) : isPaid ? (
+                            <span className="text-xs flex items-center gap-1 text-success font-semibold py-1.5">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Paid
+                            </span>
+                        ) : null}
+                    </div>
+
+                    {/* Sliding Menu on the right */}
+                    <div className="flex justify-end relative z-10 w-[140px]">
+                        <AnimatePresence mode="wait">
+                            {menuOpen ? (
+                                <motion.div
+                                    key="menu"
+                                    initial={{ width: 0, opacity: 0 }}
+                                    animate={{ width: 'auto', opacity: 1 }}
+                                    exit={{ width: 0, opacity: 0 }}
+                                    className="flex bg-muted rounded-full border border-border shadow-sm p-[2px] overflow-hidden absolute right-0 bottom-0"
+                                >
+                                    {isRecurring && !isPaid && !isOverspent && (
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full hover:bg-background text-primary" onClick={() => { onMarkPaid(cat); setMenuOpen(false); }}>
+                                            <CheckCircle2 className="w-3.5 h-3.5" />
+                                        </Button>
+                                    )}
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full hover:bg-background text-muted-foreground mx-0.5" onClick={() => { onEditName(cat); setMenuOpen(false); }}>
+                                        <Edit2 className="w-3.5 h-3.5" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full hover:bg-background text-destructive mr-0.5" onClick={() => { onDelete(cat.id); setMenuOpen(false); }}>
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                    </Button>
+                                    <div className="w-[1px] bg-border/50 mx-1 my-1"></div>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full bg-background border border-border shadow-sm text-foreground active:scale-95 transition-transform" onClick={() => setMenuOpen(false)}>
+                                        <MoreHorizontal className="w-4 h-4" />
+                                    </Button>
+                                </motion.div>
+                            ) : (
+                                <motion.div
+                                    key="toggle"
+                                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                    className="absolute right-0 bottom-0"
+                                >
+                                    <Button variant="ghost" size="sm" className="h-8 px-2.5 rounded-full text-muted-foreground active:bg-muted border border-transparent hover:border-border hover:bg-muted/50" onClick={(e) => { e.stopPropagation(); setMenuOpen(true); }}>
+                                        <MoreHorizontal className="w-4 h-4" />
+                                    </Button>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
                 </div>
-            </div>
+            ) : (
+                <div className="flex items-center gap-2 mt-3">
+                    {isOverspent && (
+                        <button
+                            onClick={() => onFix(cat)}
+                            aria-label={`Cover overspending in ${cat.name}`}
+                            className="flex items-center gap-1.5 text-xs bg-primary text-primary-foreground px-4 py-2 rounded-full font-bold hover:bg-primary/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring shadow-sm"
+                        >
+                            Cover Overspend
+                        </button>
+                    )}
+                    {isRecurring && !isPaid && !isOverspent && (
+                        <button
+                            onClick={() => onMarkPaid(cat)}
+                            className="flex items-center gap-1.5 text-xs bg-primary/10 text-primary px-3 py-1.5 rounded-full font-semibold hover:bg-primary/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                            <CheckCircle2 className="w-3 h-3" /> Mark Paid
+                        </button>
+                    )}
+                    {isPaid && (
+                        <span className="text-xs flex items-center gap-1 text-success font-semibold">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Paid
+                        </span>
+                    )}
+                    <div className="ml-auto flex gap-1">
+                        <button
+                            onClick={() => onEditName(cat)}
+                            aria-label={`Edit ${cat.name}`}
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                            <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={() => onDelete(cat.id)}
+                            aria-label={`Delete ${cat.name}`}
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+            )}
         </motion.div>
     );
 });

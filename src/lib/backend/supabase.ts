@@ -12,8 +12,8 @@ export class SupabaseAdapter implements BackendAdapter {
     private currentToken: string | null = null;
     private currentUser: User | null = null;
 
-    constructor(url: string, publishableKey: string, authToken?: string) {
-        this.supabase = createClient(url, publishableKey, {
+    constructor(url: string, anonKey: string, authToken?: string) {
+        this.supabase = createClient(url, anonKey, {
             auth: {
                 autoRefreshToken: true,
                 persistSession: true,
@@ -21,16 +21,11 @@ export class SupabaseAdapter implements BackendAdapter {
             }
         });
 
-        (window as any).supabase = this.supabase;
-
         // Restore session from localStorage on init (critical for refresh persistence)
         if (!authToken) {
             this.supabase.auth.getSession().then(({ data: { session } }) => {
                 if (session) {
-                    this.supabase.auth.setSession({
-                        access_token: session.access_token,
-                        refresh_token: session.refresh_token
-                    });
+                    this.supabase.auth.setSession(session);
                 }
             });
         } else {
@@ -47,7 +42,7 @@ export class SupabaseAdapter implements BackendAdapter {
             this.currentUser = null;
         } else {
             this.currentToken = data.session?.access_token ?? null;
-            this.currentUser = data.session?.user ? this.mapUser(data.session.user) : null;
+            this.currentUser = data.session?.user ? await this.fetchUserProfile(data.session.user) : null;
         }
         return {
             user: this.currentUser,
@@ -64,7 +59,7 @@ export class SupabaseAdapter implements BackendAdapter {
         const { data, error } = await this.supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         this.currentToken = data.session.access_token;
-        this.currentUser = this.mapUser(data.user);
+        this.currentUser = await this.fetchUserProfile(data.user);
         return {
             user: this.currentUser,
             token: this.currentToken,
@@ -83,9 +78,9 @@ export class SupabaseAdapter implements BackendAdapter {
 
     onAuthStateChange(callback: (user: User | null) => void) {
         const { data: { subscription } } = this.supabase.auth.onAuthStateChange(
-            (_event, session) => {
+            async (_event, session) => {
                 this.currentToken = session?.access_token ?? null;
-                this.currentUser = session ? this.mapUser(session.user) : null;
+                this.currentUser = session ? await this.fetchUserProfile(session.user) : null;
                 callback(this.currentUser);
             }
         );
@@ -208,10 +203,31 @@ export class SupabaseAdapter implements BackendAdapter {
     private toSupabase(obj: any): any {
         if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
         const result: any = {};
-        for (const [key, value] of Object.entries(obj)) {
+        for (let [key, value] of Object.entries(obj)) {
+            if (key === 'needsReview' || key === 'reviewNote') {
+                continue; // Handled below
+            }
             const mappedKey = FIELD_MAP[key] || key;
-            result[mappedKey] = value;
+
+            // Avatar is a TEXT column in Postgres, but an object in frontend. Must stringify for save.
+            if (mappedKey === 'avatar' && value && typeof value === 'object') {
+                result[mappedKey] = JSON.stringify(value);
+            } else {
+                result[mappedKey] = value;
+            }
         }
+
+        // Priority #4: Collaborative Workflows
+        // Pack needsReview & reviewNote into the tags array to avoid schema breaks
+        if ('needsReview' in obj || 'reviewNote' in obj) {
+            const tags = Array.isArray(obj.tags) ? [...obj.tags] : [];
+            const cleanTags = tags.filter((t: any) => typeof t !== 'string' || !t.startsWith('{"__vReview"'));
+            if (obj.needsReview) {
+                cleanTags.push(JSON.stringify({ __vReview: true, note: obj.reviewNote || '' }));
+            }
+            result.tags = cleanTags;
+        }
+
         return result;
     }
 
@@ -232,10 +248,33 @@ export class SupabaseAdapter implements BackendAdapter {
                 // Try to infer the collection name by pluralizing the mapped key
                 const relCollection = collectionName ? `${mappedKey}s` : undefined;
                 expand[mappedKey] = this.toFrontend(value, relCollection);
+                // Crucial: we must retain the scalar ID on the root object to match PocketBase behavior!
                 result[mappedKey] = value.id;
                 hasExpand = true;
             } else {
-                result[mappedKey] = numericFields.includes(mappedKey) && value !== null ? Number(value) : value;
+                let finalValue = value;
+
+                // Auto-parse stringified JSON coming from TEXT columns (like avatar)
+                if (typeof value === 'string' && (value.startsWith('{') || value.startsWith('['))) {
+                    try {
+                        finalValue = JSON.parse(value);
+                    } catch (_) { /* ignore invalid JSON, keep as string */ }
+                }
+
+                result[mappedKey] = numericFields.includes(mappedKey) && finalValue !== null ? Number(finalValue) : finalValue;
+
+                // Priority #4: Unpack Collaborative Workflows tracking from tags
+                if (mappedKey === 'tags' && Array.isArray(finalValue)) {
+                    const reviewIdx = finalValue.findIndex((t: any) => typeof t === 'string' && t.startsWith('{"__vReview"'));
+                    if (reviewIdx !== -1) {
+                        try {
+                            const parsed = JSON.parse(finalValue[reviewIdx]);
+                            result.needsReview = !!parsed.__vReview;
+                            result.reviewNote = parsed.note || '';
+                            finalValue.splice(reviewIdx, 1);
+                        } catch (e) { /* ignore */ }
+                    }
+                }
             }
         }
 
@@ -356,6 +395,34 @@ export class SupabaseAdapter implements BackendAdapter {
     }
 
     // ─── Helpers ──────────────────────────────────────────────────
+    private async fetchUserProfile(authUser: any): Promise<User> {
+        const basicUser = this.mapUser(authUser);
+        if (!authUser?.id) return basicUser;
+
+        try {
+            const { data, error } = await this.supabase
+                .from('users')
+                .select('*')
+                .eq('id', authUser.id)
+                .single();
+
+            if (error) {
+                console.warn('[SupabaseAdapter] Could not fetch public profile for', authUser.id, error.message);
+                return basicUser;
+            }
+
+            const profile = this.toFrontend(data, 'users');
+            return {
+                ...basicUser,
+                ...profile,
+                id: basicUser.id
+            };
+        } catch (err) {
+            console.error('[SupabaseAdapter] Profile fetch error:', err);
+            return basicUser;
+        }
+    }
+
     private mapUser(user: any): User {
         return {
             id: user.id,

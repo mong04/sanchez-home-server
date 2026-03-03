@@ -114,12 +114,6 @@ describe('TransactionFab - Income Flow', () => {
             expect(callArgs.category).toBe('cat-i1'); // Dynamically found system category
             expect(callArgs.type).toBe('normal');
             expect(callArgs.payee).toBe('Work');
-
-            expect(mockUpdateBudgetMonthMutateAsync).toHaveBeenCalledTimes(1);
-            expect(mockUpdateBudgetMonthMutateAsync).toHaveBeenCalledWith({
-                id: 'bm1',
-                data: { income: 1005 } // 1000 + 5
-            });
         });
     });
 });

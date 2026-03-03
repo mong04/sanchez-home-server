@@ -18,6 +18,7 @@ import { useNavigationStore } from './useNavigationStore';
 import { filterByRole } from './navConfig';
 import { PRIMARY_NAV_ITEMS } from './navConfig';
 import type { UserRole } from './navConfig';
+import { useNeedsReviewCount } from '../../../hooks/useFinanceData';
 
 interface MobileBottomNavProps {
     userRole?: UserRole;
@@ -25,6 +26,7 @@ interface MobileBottomNavProps {
 
 export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
     const { isMobileDrawerOpen, openMobileDrawer } = useNavigationStore();
+    const { data: needsReviewCount } = useNeedsReviewCount();
 
     // Show 4 primary items + "More" (keeping bottom bar at exactly 5 tabs)
     const primaryItems = filterByRole(PRIMARY_NAV_ITEMS, userRole).slice(0, 4);
@@ -73,6 +75,9 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
                                             )}
                                             aria-hidden="true"
                                         />
+                                        {item.label === 'Finance' && !!needsReviewCount && needsReviewCount > 0 && (
+                                            <span className="absolute -top-1 -right-2 w-3 h-3 bg-destructive rounded-full border-2 border-card" />
+                                        )}
                                     </div>
                                     <span
                                         className={cn(

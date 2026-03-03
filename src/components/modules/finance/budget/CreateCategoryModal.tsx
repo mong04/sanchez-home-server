@@ -26,7 +26,9 @@ interface NewCategoryState {
     icon: string;
     type: 'expense' | 'income';
     isRecurring: boolean;
+    isGoal: boolean;
     amount: string;
+    targetAmount: string;
     frequency: 'monthly' | 'quarterly' | 'yearly';
     dueDay: number;
     startDate: string;
@@ -38,7 +40,9 @@ const INITIAL_STATE: NewCategoryState = {
     icon: '📝',
     type: 'expense',
     isRecurring: false,
+    isGoal: false,
     amount: '',
+    targetAmount: '',
     frequency: 'monthly',
     dueDay: 1,
     startDate: format(new Date(), 'yyyy-MM-dd'),
@@ -69,6 +73,14 @@ export function CreateCategoryModal({
             data.frequency = newCategory.frequency;
             data.dueDay = newCategory.dueDay;
             data.startDate = new Date(newCategory.startDate).toISOString();
+        } else if (newCategory.isGoal) {
+            // Priority #3: Savings Goal uses the `amount` field natively with no schema alterations
+            data.amount = parseFloat(newCategory.targetAmount) || 0;
+            // Overload startDate to act as the Goal Target Date!
+            data.startDate = newCategory.startDate ? new Date(newCategory.startDate).toISOString() : '';
+            // ensure frequency and dueDay are empty/null to differentiate from recurring
+            data.frequency = undefined;
+            data.dueDay = undefined;
         }
         await onCreateCategory(data);
         setNewCategory(INITIAL_STATE);
@@ -122,15 +134,56 @@ export function CreateCategoryModal({
                 <div className="pt-4 border-t border-border space-y-4">
                     <label className="flex items-center justify-between cursor-pointer group">
                         <div className="space-y-0.5">
+                            <div className="font-medium text-foreground group-hover:text-primary transition-colors">Savings Goal</div>
+                            <div className="text-xs text-muted-foreground">Set a target amount (e.g., Vacation Fund).</div>
+                        </div>
+                        <div className={cn(`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2`, newCategory.isGoal ? 'bg-primary' : 'bg-muted')}>
+                            <input
+                                type="checkbox"
+                                className="sr-only"
+                                checked={newCategory.isGoal}
+                                onChange={(e) => setNewCategory((prev) => ({ ...prev, isGoal: e.target.checked, isRecurring: e.target.checked ? false : prev.isRecurring }))}
+                            />
+                            <span className={cn('pointer-events-none inline-block h-5 w-5 transform rounded-full bg-background shadow ring-0 transition duration-200 ease-in-out', newCategory.isGoal ? 'translate-x-5' : 'translate-x-0')} />
+                        </div>
+                    </label>
+
+                    <AnimatePresence>
+                        {newCategory.isGoal && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="space-y-4 overflow-hidden pt-2"
+                            >
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <Label htmlFor="catTargetAmount">Target Amount</Label>
+                                        <div className="relative">
+                                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</div>
+                                            <Input id="catTargetAmount" type="number" className="pl-6" placeholder="0.00" value={newCategory.targetAmount} onChange={(e) => setNewCategory((prev) => ({ ...prev, targetAmount: e.target.value }))} />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="catTargetDate">Target Date (Optional)</Label>
+                                        <Input id="catTargetDate" type="date" value={newCategory.startDate} onChange={(e) => setNewCategory((prev) => ({ ...prev, startDate: e.target.value }))} className="[color-scheme:light] dark:[color-scheme:dark]" />
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    <label className="flex items-center justify-between cursor-pointer group">
+                        <div className="space-y-0.5">
                             <div className="font-medium text-foreground group-hover:text-primary transition-colors">Recurring Bill</div>
-                            <div className="text-xs text-muted-foreground">Set a goal amount and frequency.</div>
+                            <div className="text-xs text-muted-foreground">Set a standard monthly amount and frequency.</div>
                         </div>
                         <div className={cn(`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2`, newCategory.isRecurring ? 'bg-primary' : 'bg-muted')}>
                             <input
                                 type="checkbox"
                                 className="sr-only"
                                 checked={newCategory.isRecurring}
-                                onChange={(e) => setNewCategory((prev) => ({ ...prev, isRecurring: e.target.checked }))}
+                                onChange={(e) => setNewCategory((prev) => ({ ...prev, isRecurring: e.target.checked, isGoal: e.target.checked ? false : prev.isGoal }))}
                             />
                             <span className={cn('pointer-events-none inline-block h-5 w-5 transform rounded-full bg-background shadow ring-0 transition duration-200 ease-in-out', newCategory.isRecurring ? 'translate-x-5' : 'translate-x-0')} />
                         </div>
@@ -168,7 +221,7 @@ export function CreateCategoryModal({
                                     </div>
                                     <div className="space-y-1">
                                         <Label htmlFor="catStartDate">Start Date</Label>
-                                        <Input id="catStartDate" type="date" value={newCategory.startDate} onChange={(e) => setNewCategory((prev) => ({ ...prev, startDate: e.target.value }))} />
+                                        <Input id="catStartDate" type="date" value={newCategory.startDate} onChange={(e) => setNewCategory((prev) => ({ ...prev, startDate: e.target.value }))} className="[color-scheme:light] dark:[color-scheme:dark]" />
                                     </div>
                                 </div>
                             </motion.div>

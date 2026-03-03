@@ -42,6 +42,8 @@ export interface TransactionRecord extends BaseRecord {
     transferGroupId?: string;
     splitGroupId?: string;
     isIncome?: boolean;
+    needsReview?: boolean;
+    reviewNote?: string;
     createdBy: string;
     // Expanded relations (populated when using expand param)
     expand?: {

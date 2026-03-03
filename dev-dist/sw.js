@@ -67,7 +67,7 @@ if (!self.define) {
     });
   };
 }
-define(['./workbox-f4c1b672'], (function (workbox) { 'use strict';
+define(['./workbox-52701d46'], (function (workbox) { 'use strict';
 
   self.skipWaiting();
   workbox.clientsClaim();
@@ -79,7 +79,7 @@ define(['./workbox-f4c1b672'], (function (workbox) { 'use strict';
    */
   workbox.precacheAndRoute([{
     "url": "/index.html",
-    "revision": "0.gj6vjr0o1ds"
+    "revision": "0.vf1j0v601bs"
   }], {});
   workbox.cleanupOutdatedCaches();
   workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("/index.html"), {
@@ -88,21 +88,29 @@ define(['./workbox-f4c1b672'], (function (workbox) { 'use strict';
   }));
   workbox.registerRoute(({
     url
-  }) => url.pathname.endsWith(".js") || url.pathname.endsWith(".mjs"), new workbox.NetworkFirst({
-    "cacheName": "dynamic-chunks",
+  }) => url.pathname.endsWith(".js") || url.pathname.endsWith(".mjs"), new workbox.StaleWhileRevalidate({
+    "cacheName": "all-dynamic-chunks",
     plugins: [new workbox.ExpirationPlugin({
-      maxEntries: 300,
-      maxAgeSeconds: 2592000
+      maxEntries: 500,
+      maxAgeSeconds: 5184000
     })]
   }), 'GET');
   workbox.registerRoute(({
     request
   }) => request.destination === "document", new workbox.NetworkFirst({
-    "cacheName": "html",
+    "cacheName": "html-documents",
     plugins: []
   }), 'GET');
   workbox.registerRoute(({
     url
-  }) => url.pathname.startsWith("/api/") || url.hostname.includes("pocketbase") || url.hostname.includes("supabase"), new workbox.NetworkOnly(), 'GET');
+  }) => url.pathname.startsWith("/api/") || url.hostname.includes("pocketbase") || url.hostname.includes("supabase"), new workbox.NetworkFirst({
+    "cacheName": "api-cache",
+    plugins: [new workbox.ExpirationPlugin({
+      maxEntries: 500,
+      maxAgeSeconds: 604800
+    }), new workbox.CacheableResponsePlugin({
+      statuses: [0, 200]
+    })]
+  }), 'GET');
 
 }));

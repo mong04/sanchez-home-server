@@ -23,6 +23,8 @@ import { getBackendAdapter } from './providers/BackendProvider';
 // Loaders
 const protectedLoader = async () => {
     const adapter = getBackendAdapter();
+    // Await initial session restoration before making routing decisions
+    await adapter.initializeAuth();
     if (!adapter?.getCurrentUser()) {
         return redirect('/login');
     }
@@ -31,6 +33,7 @@ const protectedLoader = async () => {
 
 const publicLoader = async () => {
     const adapter = getBackendAdapter();
+    await adapter.initializeAuth();
     if (adapter?.getCurrentUser()) {
         return redirect('/');
     }

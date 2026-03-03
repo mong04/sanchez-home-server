@@ -246,10 +246,10 @@ ON CONFLICT (id) DO NOTHING;
 
 -- Insert System Income Category
 INSERT INTO categories (id, name, owner, type, color, icon, isSystem)
-VALUES ('cat_system_income', 'Income', 'system_admin_01', 'income', '#10b981', 'money', true)
+VALUES ('cat_system_income', 'Income', 'system_admin_01', 'income', '#10b981', '💰', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- Also adding common expense category seed for immediate usability
 INSERT INTO categories (id, name, owner, type, color, icon, isSystem)
-VALUES ('cat_groceries', 'Groceries', 'system_admin_01', 'expense', '#f59e0b', 'shopping-cart', false)
+VALUES ('cat_groceries', 'Groceries', 'system_admin_01', 'expense', '#f59e0b', '🛒', false)
 ON CONFLICT (id) DO NOTHING;

@@ -122,8 +122,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 if (pkId) {
                     const profile = fetchedProfiles.find(p => p.id === pkId);
                     if (profile) {
-                        setUser(profile);
-                        localStorage.setItem('sfos_user', JSON.stringify(profile));
+                        const fullUser = { ...profile, partykit_id: pkId };
+                        setUser(fullUser);
+                        localStorage.setItem('sfos_user', JSON.stringify(fullUser));
                     }
                 } else {
                     setUser(currentUser as User);
@@ -196,8 +197,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             await adapter.update('users', currentUser.id, { partykit_id: profileId });
             const selectedProfile = profiles.find(p => p.id === profileId);
             if (selectedProfile) {
-                setUser(selectedProfile);
-                localStorage.setItem('sfos_user', JSON.stringify(selectedProfile));
+                const fullUser = { ...selectedProfile, partykit_id: profileId };
+                setUser(fullUser);
+                localStorage.setItem('sfos_user', JSON.stringify(fullUser));
             }
         } catch (error) {
             console.error("Error selecting profile:", error);
@@ -224,8 +226,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (!response.ok) throw new Error("Failed to create profile");
 
             await adapter.update('users', currentUser.id, { partykit_id: newProfileId });
-            setUser(newProfile);
-            localStorage.setItem('sfos_user', JSON.stringify(newProfile));
+            const fullUser = { ...newProfile, partykit_id: newProfileId };
+            setUser(fullUser);
+            localStorage.setItem('sfos_user', JSON.stringify(fullUser));
             setProfiles(prev => [...prev, newProfile]);
         } catch (error) {
             console.error("Error creating profile:", error);
@@ -248,8 +251,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const updatedProfile = await response.json();
             setProfiles(prev => prev.map(p => p.id === profileId ? updatedProfile : p));
             if (user?.id === profileId) {
-                setUser(updatedProfile);
-                localStorage.setItem('sfos_user', JSON.stringify(updatedProfile));
+                const fullUser = { ...updatedProfile, partykit_id: profileId };
+                setUser(fullUser);
+                localStorage.setItem('sfos_user', JSON.stringify(fullUser));
             }
         } catch (error) {
             console.error("Error updating profile:", error);

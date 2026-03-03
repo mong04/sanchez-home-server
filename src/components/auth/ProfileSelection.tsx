@@ -13,8 +13,15 @@ export function ProfileSelection() {
     }
 
     const handleSelect = async (profileId: string) => {
+        console.log('--- PROFILE SELECTION TRACE ---');
+        console.log('1. [ProfileSelection] User clicked profile ID:', profileId);
         setIsLoading(profileId);
-        await selectProfile(profileId);
+        try {
+            await selectProfile(profileId);
+            console.log('2. [ProfileSelection] selectProfile completed successfully');
+        } catch (e) {
+            console.error('2. [ProfileSelection] selectProfile FAILED:', e);
+        }
     };
 
     return (

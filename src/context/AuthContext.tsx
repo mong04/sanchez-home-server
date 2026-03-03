@@ -99,7 +99,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (!isMounted || !isInitialized) return; // Ignore mid-init flutter
 
             const currentToken = adapter.getToken();
-            console.log('🔐 [Auth] Backend State Change:', { valid: !!currentToken, user: currentUser?.email });
+            console.log('--- AUTH STATE TRACE ---');
+            console.log('1. [Auth] Backend State Change:', { valid: !!currentToken, email: currentUser?.email, pkId: (currentUser as any)?.partykit_id });
 
             setToken(currentToken);
             setIsAuthenticated(!!currentToken);
@@ -112,25 +113,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 });
                 updateProviderToken(currentToken);
             } else {
+                console.log('2. [Auth] No token, clearing auth cookie.');
                 Cookies.remove('auth_token');
             }
 
             if (currentToken && currentUser) {
+                console.log('3. [Auth] Fetching profiles for token...');
                 const fetchedProfiles = await fetchProfiles(currentToken);
+                console.log('4. [Auth] Fetched Profiles:', fetchedProfiles);
                 const pkId = (currentUser as any).partykit_id;
 
                 if (pkId) {
                     const profile = fetchedProfiles.find(p => p.id === pkId);
+                    console.log('5. [Auth] PartyKit ID from Auth metadata:', pkId, 'Match found:', !!profile);
                     if (profile) {
                         const fullUser = { ...profile, partykit_id: pkId };
+                        console.log('6. [Auth] Full User Set:', fullUser);
                         setUser(fullUser);
                         localStorage.setItem('sfos_user', JSON.stringify(fullUser));
                     }
                 } else {
+                    console.log('5. [Auth] NO PartyKit ID found on metadata! Base User:', currentUser);
                     setUser(currentUser as User);
                     localStorage.setItem('sfos_user', JSON.stringify(currentUser));
                 }
             } else {
+                console.log('3. [Auth] Cleared user session.');
                 setUser(null);
                 setProfiles([]);
                 localStorage.removeItem('sfos_user');
@@ -190,14 +198,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const selectProfile = async (profileId: string) => {
+        console.log('--- SELECT PROFILE TRACE ---');
+        console.log('1. [Profile] selectProfile called with ID:', profileId);
         const currentUser = adapter.getCurrentUser();
+        console.log('2. [Profile] Current Base User:', currentUser);
         if (!currentUser) return;
 
         try {
+            console.log('3. [Profile] Updating adapter users table with partykit_id:', profileId);
             await adapter.update('users', currentUser.id, { partykit_id: profileId });
+            console.log('4. [Profile] Adapter update successful.');
+
             const selectedProfile = profiles.find(p => p.id === profileId);
+            console.log('5. [Profile] Found profile in state:', !!selectedProfile);
             if (selectedProfile) {
                 const fullUser = { ...selectedProfile, partykit_id: profileId };
+                console.log('6. [Profile] Setting local state to full user:', fullUser);
                 setUser(fullUser);
                 localStorage.setItem('sfos_user', JSON.stringify(fullUser));
             }

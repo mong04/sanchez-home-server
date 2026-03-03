@@ -1,9 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 import { motion, MotionValue } from 'framer-motion';
 import confetti from 'canvas-confetti';
 
 import { useFinanceStore } from '../../../stores/useFinanceStore';
-import { useBudgetMonth } from '../../../hooks/useFinanceData';
 import { formatCurrency } from '../../../lib/utils';
 
 interface TbbHeroCardProps {
@@ -12,12 +11,9 @@ interface TbbHeroCardProps {
     className?: string;
 }
 
-export function TbbHeroCard({ month, className = "" }: TbbHeroCardProps) {
+export function TbbHeroCard({ className = "" }: TbbHeroCardProps) {
     const { toBeBudgeted: rawToBeBudgeted } = useFinanceStore();
     const toBeBudgeted = rawToBeBudgeted ?? 0;
-    const { data: budgetMonth } = useBudgetMonth(month);
-
-    const income = budgetMonth?.income ?? 0;
 
     // Confetti logic: fire when TBB goes from negative to >= 0
     const prevTbbRef = useRef<number | null>(null);

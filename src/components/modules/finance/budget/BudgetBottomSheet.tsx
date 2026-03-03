@@ -29,7 +29,6 @@ export function BudgetBottomSheet({
     spent,
     onAllocationChange,
     recurringConfig,
-    dueText,
     isPaid,
     isRecurring,
     onMarkPaid,
@@ -56,7 +55,6 @@ export function BudgetBottomSheet({
     // Derived flags
     const isGoal = !isRecurring && category?.amount && category.amount > 0;
     const targetAmount = category?.amount || 0;
-    const isMet = isGoal && available >= targetAmount;
     const isUnderGoal = isRecurring && recurringConfig?.amount ? draftNum < recurringConfig.amount : false;
 
     // Focus input on open
@@ -135,7 +133,7 @@ export function BudgetBottomSheet({
                                         {isRecurring && (
                                             <span className="inline-flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
                                                 <Calendar className="w-3 h-3" />
-                                                {isPaid ? 'Paid this month' : dueText || 'Recurring'}
+                                                {isPaid ? 'Paid this month' : 'Recurring'}
                                             </span>
                                         )}
                                     </div>

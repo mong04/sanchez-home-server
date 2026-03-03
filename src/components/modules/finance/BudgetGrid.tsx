@@ -403,6 +403,9 @@ export function BudgetGrid({ month }: BudgetGridProps) {
                                                                 isPaid={d.isPaid}
                                                                 dueText={d.dueText}
                                                                 recurringConfig={d.recurringConfig}
+                                                                isGoal={d.isGoal}
+                                                                targetAmount={d.targetAmount}
+                                                                goalProgress={d.goalProgress}
                                                                 onIconClick={(id) => setIconPopoverCatId(iconPopoverCatId === id ? null : id)}
                                                                 iconPopoverCatId={iconPopoverCatId}
                                                                 iconPopoverRef={iconPopoverRef}

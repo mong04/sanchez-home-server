@@ -314,8 +314,56 @@ export class SupabaseAdapter implements BackendAdapter {
 
     async update<T>(collection: string, id: string, data: Partial<T>) {
         const mappedPayload = this.toSupabase(data);
-        const { data: result, error } = await this.supabase.from(collection).update(mappedPayload).eq('id', id).select().single();
-        if (error) throw error;
+
+        // Special case: If updating the current user's profile, also sync core fields to Auth Metadata cache
+        // to ensure immediate availability in mapUser fallbacks if public table is restricted/missing.
+        if (collection === 'users' && id === this.currentUser?.id) {
+            try {
+                const metadataUpdates: any = {};
+                if ('partykit_id' in mappedPayload) metadataUpdates.partykit_id = mappedPayload.partykit_id;
+                if ('name' in mappedPayload) metadataUpdates.name = mappedPayload.name;
+                if ('role' in mappedPayload) metadataUpdates.role = mappedPayload.role;
+                if ('avatar' in mappedPayload) metadataUpdates.avatar = mappedPayload.avatar;
+
+                if (Object.keys(metadataUpdates).length > 0) {
+                    await this.supabase.auth.updateUser({ data: metadataUpdates });
+                }
+            } catch (e) {
+                console.warn('[SupabaseAdapter] Failed to sync auth metadata', e);
+            }
+        }
+
+        const { data: result, error } = await this.supabase
+            .from(collection)
+            .update(mappedPayload)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) {
+            // Handle missing row due to missing migration or manual created auth users not triggering INSERT.
+            if (error.code === 'PGRST116' && collection === 'users' && this.currentUser && id === this.currentUser.id) {
+                console.warn(`[SupabaseAdapter] Row missing in ${collection} for ID ${id}. Upserting instead.`);
+                // If the user's row was never created (migration flaw), seed it with minimum requirements
+                const upsertPayload = {
+                    id,
+                    email: this.currentUser.email,
+                    name: this.currentUser.name || '',
+                    role: this.currentUser.role || 'partner',
+                    ...mappedPayload
+                };
+                const { data: upsertResult, error: upsertError } = await this.supabase
+                    .from(collection)
+                    .upsert(upsertPayload)
+                    .select()
+                    .single();
+
+                if (upsertError) throw upsertError;
+                return this.toFrontend(upsertResult, collection) as T;
+            }
+            throw error;
+        }
+
         return this.toFrontend(result, collection) as T;
     }
 

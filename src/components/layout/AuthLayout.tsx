@@ -19,7 +19,7 @@ export function AuthLayout() {
     }
 
     // 2. Authenticated but no profile -> Show Profile Selection/Setup
-    if (!user) {
+    if (!user || !(user as any).partykit_id) {
         return <ProfileSelection />;
     }
 

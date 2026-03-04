@@ -131,8 +131,8 @@ export function AppLayout() {
                         </Button>
                         <Button
                             variant="destructive"
-                            onClick={() => {
-                                logout();
+                            onClick={async () => {
+                                await logout();
                                 setIsLogoutModalOpen(false);
                             }}
                         >
@@ -146,7 +146,7 @@ export function AppLayout() {
                         Any unsaved changes in the text editor will be preserved, but your session will be ended immediately.
                     </p>
                 </div>
-            </Modal>
-        </div>
+            </Modal >
+        </div >
     );
 }

@@ -31,8 +31,10 @@ function getStoredConfig(): BackendConfig {
     if (stored) {
         try {
             const parsed = JSON.parse(stored) as BackendConfig;
-            if (parsed.type === 'pocketbase' || parsed.type === 'supabase') {
+            if (parsed.type === 'supabase') {
                 return parsed;
+            } else if (parsed.type === 'pocketbase') {
+                console.warn('[BackendProvider] Ignored legacy PocketBase cache. Forcing Supabase.');
             }
         } catch {
             // invalid stored config → fall through to default

@@ -6,13 +6,14 @@ import { useBackend } from '../providers/BackendProvider';
 import type { User } from '../types/schema';
 
 interface AuthContextType {
+    isLoading: boolean;
     isAuthenticated: boolean;
     user: User | null;
     token: string | null;
     profiles: User[];
 
     login: (email: string, pass: string) => Promise<boolean>;
-    logout: () => void;
+    logout: () => Promise<void>;
     selectProfile: (profileId: string) => Promise<void>;
     createProfile: (profile: Omit<User, 'id'>) => Promise<void>;
     updateProfile: (profileId: string, updates: Partial<User>) => Promise<void>;
@@ -43,7 +44,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     const [profiles, setProfiles] = useState<User[]>([]);
 
-    const [isInitialized, setIsInitialized] = useState(false);
+
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         let isMounted = true;
@@ -88,19 +90,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 }
             } catch (error) {
                 console.error('[AuthContext] Failed to initialize auth:', error);
-            } finally {
-                if (isMounted) setIsInitialized(true);
+                // No longer needed
             }
         };
 
         initAuth();
 
         const unsubscribe = adapter.onAuthStateChange(async (currentUser) => {
-            if (!isMounted || !isInitialized) return; // Ignore mid-init flutter
+            if (!isMounted) return;
 
             const currentToken = adapter.getToken();
-            console.log('--- AUTH STATE TRACE ---');
-            console.log('1. [Auth] Backend State Change:', { valid: !!currentToken, email: currentUser?.email, pkId: (currentUser as any)?.partykit_id });
 
             setToken(currentToken);
             setIsAuthenticated(!!currentToken);
@@ -113,36 +112,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 });
                 updateProviderToken(currentToken);
             } else {
-                console.log('2. [Auth] No token, clearing auth cookie.');
                 Cookies.remove('auth_token');
             }
 
             if (currentToken && currentUser) {
-                console.log('3. [Auth] Fetching profiles for token...');
                 const fetchedProfiles = await fetchProfiles(currentToken);
-                console.log('4. [Auth] Fetched Profiles:', fetchedProfiles);
                 const pkId = (currentUser as any).partykit_id;
 
                 if (pkId) {
                     const profile = fetchedProfiles.find(p => p.id === pkId);
-                    console.log('5. [Auth] PartyKit ID from Auth metadata:', pkId, 'Match found:', !!profile);
                     if (profile) {
                         const fullUser = { ...profile, partykit_id: pkId };
-                        console.log('6. [Auth] Full User Set:', fullUser);
                         setUser(fullUser);
                         localStorage.setItem('sfos_user', JSON.stringify(fullUser));
                     }
                 } else {
-                    console.log('5. [Auth] NO PartyKit ID found on metadata! Base User:', currentUser);
                     setUser(currentUser as User);
                     localStorage.setItem('sfos_user', JSON.stringify(currentUser));
                 }
             } else {
-                console.log('3. [Auth] Cleared user session.');
                 setUser(null);
                 setProfiles([]);
                 localStorage.removeItem('sfos_user');
             }
+            if (isMounted) setIsLoading(false);
         });
 
         return () => {
@@ -189,33 +182,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const logout = () => {
-        adapter.signOut();
-        setUser(null);
-        setProfiles([]);
-        localStorage.removeItem('sfos_user');
-        Cookies.remove('auth_token');
+    const logout = async () => {
+        setIsLoading(true);
+        try {
+            await adapter.signOut();
+        } catch (err) {
+            console.error('[AuthContext] Sign out error:', err);
+        } finally {
+            setIsAuthenticated(false);
+            setToken(null);
+            setUser(null);
+            setProfiles([]);
+            localStorage.removeItem('sfos_user');
+            Cookies.remove('auth_token');
+            sessionStorage.clear();
+            setIsLoading(false);
+        }
     };
 
     const selectProfile = async (profileId: string) => {
-        console.log('--- SELECT PROFILE TRACE ---');
-        console.log('1. [Profile] selectProfile called with ID:', profileId);
+        console.log(`[selectProfile] Called with profileId:`, profileId);
         const currentUser = adapter.getCurrentUser();
-        console.log('2. [Profile] Current Base User:', currentUser);
-        if (!currentUser) return;
+        console.log(`[selectProfile] adapter.getCurrentUser() returned:`, currentUser);
+
+        if (!currentUser) {
+            throw new Error(`[selectProfile] FATAL: currentUser is null! Adapter is not authenticated.`);
+        }
 
         try {
-            console.log('3. [Profile] Updating adapter users table with partykit_id:', profileId);
+            console.log(`[selectProfile] Calling adapter.update for user ID:`, currentUser.id);
             await adapter.update('users', currentUser.id, { partykit_id: profileId });
-            console.log('4. [Profile] Adapter update successful.');
+            console.log(`[selectProfile] adapter.update SUCCESS!`);
 
             const selectedProfile = profiles.find(p => p.id === profileId);
-            console.log('5. [Profile] Found profile in state:', !!selectedProfile);
             if (selectedProfile) {
                 const fullUser = { ...selectedProfile, partykit_id: profileId };
-                console.log('6. [Profile] Setting local state to full user:', fullUser);
+                console.log(`[selectProfile] Setting fullUser:`, fullUser);
                 setUser(fullUser);
                 localStorage.setItem('sfos_user', JSON.stringify(fullUser));
+            } else {
+                console.warn(`[selectProfile] Warning: Profile not found in 'profiles' array!`);
             }
         } catch (error) {
             console.error("Error selecting profile:", error);
@@ -294,17 +300,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    if (!isInitialized) {
-        return (
-            <div className="min-h-screen w-full flex items-center justify-center bg-background">
-                <div className="w-8 h-8 rounded-full border-4 border-primary/30 border-t-primary animate-spin"></div>
-            </div>
-        );
-    }
+
 
     return (
         <AuthContext.Provider value={{
-            isAuthenticated, user, token, profiles,
+            isLoading, isAuthenticated, user, token, profiles,
             login, logout,
             selectProfile, createProfile, updateProfile, fetchProfiles,
             updatePassword

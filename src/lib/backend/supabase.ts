@@ -11,6 +11,7 @@ export class SupabaseAdapter implements BackendAdapter {
     private supabase: SupabaseClient;
     private currentToken: string | null = null;
     private currentUser: User | null = null;
+    private initPromise: Promise<{ user: User | null; token: string | null }> | null = null;
 
     constructor(url: string, anonKey: string, authToken?: string) {
         this.supabase = createClient(url, anonKey, {
@@ -33,21 +34,27 @@ export class SupabaseAdapter implements BackendAdapter {
         }
     }
 
-    async initializeAuth() {
-        // Explicitly await the initial session fetch to resolve race conditions
-        const { data, error } = await this.supabase.auth.getSession();
-        if (error) {
-            console.error('[SupabaseAdapter] Failed to initialize session:', error);
-            this.currentToken = null;
-            this.currentUser = null;
-        } else {
-            this.currentToken = data.session?.access_token ?? null;
-            this.currentUser = data.session?.user ? await this.fetchUserProfile(data.session.user) : null;
-        }
-        return {
-            user: this.currentUser,
-            token: this.currentToken
-        };
+    initializeAuth(): Promise<{ user: User | null; token: string | null }> {
+        if (this.initPromise) return this.initPromise;
+
+        this.initPromise = (async () => {
+            // Explicitly await the initial session fetch to resolve race conditions
+            const { data, error } = await this.supabase.auth.getSession();
+            if (error) {
+                console.error('[SupabaseAdapter] Failed to initialize session:', error);
+                this.currentToken = null;
+                this.currentUser = null;
+            } else {
+                this.currentToken = data.session?.access_token ?? null;
+                this.currentUser = data.session?.user ? await this.fetchUserProfile(data.session.user) : null;
+            }
+            return {
+                user: this.currentUser,
+                token: this.currentToken
+            };
+        })();
+
+        return this.initPromise;
     }
 
     getToken(): string | null {
@@ -56,6 +63,7 @@ export class SupabaseAdapter implements BackendAdapter {
 
     // ─── Auth ─────────────────────────────────────────────────────
     async signIn(email: string, password: string) {
+        this.initPromise = null;
         const { data, error } = await this.supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         this.currentToken = data.session.access_token;
@@ -74,6 +82,7 @@ export class SupabaseAdapter implements BackendAdapter {
         } finally {
             this.currentToken = null;
             this.currentUser = null;
+            this.initPromise = null;
         }
     }
 
@@ -313,10 +322,22 @@ export class SupabaseAdapter implements BackendAdapter {
     }
 
     async update<T>(collection: string, id: string, data: Partial<T>) {
+        console.log(`[Adapter] update called for ${collection} ID: ${id}`);
         const mappedPayload = this.toSupabase(data);
 
-        // Special case: If updating the current user's profile, also sync core fields to Auth Metadata cache
-        // to ensure immediate availability in mapUser fallbacks if public table is restricted/missing.
+        // Perform the critical database update FIRST
+        console.log(`[Adapter] Calling supabase.from(${collection}).update`);
+        const { data: result, error } = await this.supabase
+            .from(collection)
+            .update(mappedPayload)
+            .eq('id', id)
+            .select()
+            .single();
+
+        // Background Sync Auth Metadata:
+        // IMPORTANT: Supabase JS acquires an internal lock and blocks outgoing Postgrest queries
+        // during `updateUser()` to ensure JWT token consistency. If `updateUser` hangs on the network,
+        // it deadlocks local queries. We MUST run it non-blocking AFTER the critical `from().update()` is finished.
         if (collection === 'users' && id === this.currentUser?.id) {
             try {
                 const metadataUpdates: any = {};
@@ -326,21 +347,18 @@ export class SupabaseAdapter implements BackendAdapter {
                 if ('avatar' in mappedPayload) metadataUpdates.avatar = mappedPayload.avatar;
 
                 if (Object.keys(metadataUpdates).length > 0) {
-                    await this.supabase.auth.updateUser({ data: metadataUpdates });
+                    console.log(`[Adapter] Calling updateUser metadata sync (background)`);
+                    this.supabase.auth.updateUser({ data: metadataUpdates })
+                        .then(() => console.log(`[Adapter] updateUser metadata completed`))
+                        .catch(e => console.warn('[SupabaseAdapter] Failed to sync auth metadata (background)', e));
                 }
             } catch (e) {
-                console.warn('[SupabaseAdapter] Failed to sync auth metadata', e);
+                console.warn('[SupabaseAdapter] Failed to sync auth metadata (background)', e);
             }
         }
 
-        const { data: result, error } = await this.supabase
-            .from(collection)
-            .update(mappedPayload)
-            .eq('id', id)
-            .select()
-            .single();
-
         if (error) {
+            console.error(`[Adapter] Update error for ${collection}:`, error);
             // Handle missing row due to missing migration or manual created auth users not triggering INSERT.
             if (error.code === 'PGRST116' && collection === 'users' && this.currentUser && id === this.currentUser.id) {
                 console.warn(`[SupabaseAdapter] Row missing in ${collection} for ID ${id}. Upserting instead.`);
@@ -352,18 +370,21 @@ export class SupabaseAdapter implements BackendAdapter {
                     role: this.currentUser.role || 'partner',
                     ...mappedPayload
                 };
+                console.log(`[Adapter] Calling upsert for missing row`);
                 const { data: upsertResult, error: upsertError } = await this.supabase
                     .from(collection)
                     .upsert(upsertPayload)
                     .select()
                     .single();
 
+                console.log(`[Adapter] Upsert completed`);
                 if (upsertError) throw upsertError;
                 return this.toFrontend(upsertResult, collection) as T;
             }
             throw error;
         }
 
+        console.log(`[Adapter] returning toFrontend mapped update`);
         return this.toFrontend(result, collection) as T;
     }
 

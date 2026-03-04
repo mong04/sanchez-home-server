@@ -1,15 +1,12 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { ProfileSelection } from '../auth/ProfileSelection';
 
 export function AuthLayout() {
-    const { isAuthenticated, user } = useAuth();
+    const { isLoading, isAuthenticated, user } = useAuth();
 
-    // 1. Wait for AuthContext state to sync with the BackendAdapter
-    // (The `protectedLoader` guarantees we are logged in, so if isAuthenticated is false
-    //  or user is null, it just means the onAuthStateChange listener is still fetching data).
-    // We must wait for the user object to fully hydrate before showing ProfileSelection.
-    if (!isAuthenticated || !user) {
+    // 1. Initial hydration check
+    if (isLoading || (isAuthenticated && !user)) {
         return (
             <div className="min-h-screen bg-background flex flex-col justify-center items-center">
                 <div className="flex flex-col items-center gap-4">
@@ -20,8 +17,13 @@ export function AuthLayout() {
         );
     }
 
-    // 2. Authenticated but no profile -> Show Profile Selection/Setup
-    if (!(user as any).partykit_id) {
+    // 2. Unauthenticated -> Kick to login
+    if (!isLoading && !isAuthenticated) {
+        return <Navigate to="/login" replace />;
+    }
+
+    // 3. Authenticated but no profile -> Show Profile Selection/Setup
+    if (user && !(user as any).partykit_id) {
         return <ProfileSelection />;
     }
 

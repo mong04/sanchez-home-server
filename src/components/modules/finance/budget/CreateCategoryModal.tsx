@@ -214,15 +214,16 @@ export function CreateCategoryModal({
                                         />
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-1">
-                                        <Label htmlFor="catDueDay">Due Day (1–31)</Label>
-                                        <Input id="catDueDay" type="number" min={1} max={31} value={newCategory.dueDay} onChange={(e) => setNewCategory((prev) => ({ ...prev, dueDay: parseInt(e.target.value) || 1 }))} />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <Label htmlFor="catStartDate">Start Date</Label>
-                                        <Input id="catStartDate" type="date" value={newCategory.startDate} onChange={(e) => setNewCategory((prev) => ({ ...prev, startDate: e.target.value }))} className="[color-scheme:light] dark:[color-scheme:dark]" />
-                                    </div>
+                                <div className="space-y-1">
+                                    <Label htmlFor="catStartDate">Next Due Date</Label>
+                                    <Input id="catStartDate" type="date" value={newCategory.startDate} onChange={(e) => {
+                                        const val = e.target.value;
+                                        setNewCategory((prev) => ({
+                                            ...prev,
+                                            startDate: val,
+                                            dueDay: val ? parseInt(val.split('-')[2], 10) : prev.dueDay
+                                        }));
+                                    }} className="[color-scheme:light] dark:[color-scheme:dark]" />
                                 </div>
                             </motion.div>
                         )}

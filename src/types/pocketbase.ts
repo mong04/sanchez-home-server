@@ -22,6 +22,7 @@ export interface AccountRecord extends BaseRecord {
     owner: string; // User ID
     type: "checking" | "savings" | "credit_card" | "loan" | "investment" | "other";
     initialBalance: number;
+    balance?: number;
     initialBalanceDate: string;
     currency: string;
     icon?: string;
@@ -66,6 +67,7 @@ export interface CategoryRecord extends BaseRecord {
     frequency?: "monthly" | "quarterly" | "yearly";
     dueDay?: number; // 1-31
     startDate?: string;
+    spent?: number;
     notes?: string;
 }
 

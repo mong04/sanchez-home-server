@@ -54,7 +54,7 @@ export function BudgetSummaryBar({
         >
             {/* Total Budgeted */}
             <div className="flex flex-col items-center justify-center px-2 py-3 md:py-4 border-r border-border/50">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-0.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">
                     Budgeted
                 </span>
                 <AnimatedNumber
@@ -65,7 +65,7 @@ export function BudgetSummaryBar({
 
             {/* Total Spent */}
             <div className="flex flex-col items-center justify-center px-2 py-3 md:py-4 border-r border-border/50">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-0.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">
                     Spent
                 </span>
                 <AnimatedNumber
@@ -85,7 +85,7 @@ export function BudgetSummaryBar({
                             : 'bg-destructive/5'
                 )}
             >
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-0.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">
                     <span className="hidden sm:inline">To Be Budgeted</span>
                     <span className="sm:hidden">Left</span>
                 </span>
@@ -102,7 +102,7 @@ export function BudgetSummaryBar({
                     <motion.span
                         initial={{ opacity: 0, scale: 0.8 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="text-[9px] text-success font-semibold mt-0.5 uppercase tracking-wide"
+                        className="text-[9px] text-success font-bold mt-0.5 uppercase tracking-wide"
                     >
                         ✓ All assigned!
                     </motion.span>

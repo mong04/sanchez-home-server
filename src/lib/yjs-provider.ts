@@ -1,7 +1,6 @@
 import * as Y from 'yjs';
 import { IndexeddbPersistence } from 'y-indexeddb';
 import YPartyKitProvider from "y-partykit/provider";
-import Cookies from 'js-cookie';
 import { SYNC_CONFIG } from '../config/sync';
 import type { InfinityLogItem, Chore, Bill, ShoppingItem, CalendarEvent, WellnessEntry, Message, User } from '../types/schema';
 
@@ -20,6 +19,7 @@ if (persistence) {
 
 // ─── Provider Management ─────────────────────────────────────────
 let currentProvider: YPartyKitProvider | null = null;
+let currentActiveToken: string | null = null;
 
 function createProvider(token: string): YPartyKitProvider {
     console.log('🔧 [Yjs] Creating provider with token:', token ? `${token.substring(0, 20)}...` : 'EMPTY');
@@ -46,6 +46,7 @@ function createProvider(token: string): YPartyKitProvider {
         console.log('✅ [Yjs] PartyKit synced with server');
     });
 
+    // We only connect explicitly when createProvider is called with a token
     if (token) {
         newProvider.connect();
     }
@@ -53,48 +54,51 @@ function createProvider(token: string): YPartyKitProvider {
     return newProvider;
 }
 
-// Initialize provider with stored token (if any)
-if (typeof window !== 'undefined') {
-    const storedToken = Cookies.get('auth_token') || '';
-    console.log('🔌 [Yjs] Initial provider config:', {
-        host: SYNC_CONFIG.PARTYKIT_HOST,
-        room: SYNC_CONFIG.ROOM_NAME,
-        hasToken: !!storedToken
-    });
-    currentProvider = createProvider(storedToken);
-}
-
-// Export getter for provider (may be null on server)
+// Export getter for provider (may be null on server or before auth)
 export function getProvider(): YPartyKitProvider | null {
     return currentProvider;
 }
 
-// Legacy export for compatibility
-export const provider = {
-    get awareness() { return currentProvider?.awareness; },
-    get ws() { return currentProvider?.ws; },
-    disconnect() { currentProvider?.disconnect(); },
-    connect() { currentProvider?.connect(); },
-    on(event: string, handler: any) { currentProvider?.on(event, handler); },
-    off(event: string, handler: any) { currentProvider?.off(event, handler); },
-};
+// Ensure the provider is explicitly disconnected on logout
+export function disconnectProvider() {
+    if (currentProvider) {
+        console.log('🔌 [Yjs] Disconnecting provider...');
+        currentProvider.disconnect();
+        currentProvider.destroy();
+        currentProvider = null;
+        currentActiveToken = null;
+    }
+}
 
-// Function to update the provider's token - creates new provider
-export function updateProviderToken(newToken: string) {
+// Function to update the provider's token and explicitly connect - creates new provider
+export function updateProviderToken(newToken: string | null) {
     if (typeof window === 'undefined') return;
 
-    console.log('🔄 [Yjs] Updating provider token...');
+    // Prevent destroying the websocket if the token literally hasn't changed.
+    // This stops the "WebSocket is closed before the connection is established" race condition error.
+    if (newToken === currentActiveToken) {
+        return;
+    }
 
     // Destroy old provider
     if (currentProvider) {
+        console.log('🔄 [Yjs] Destroying old provider...');
         currentProvider.disconnect();
         currentProvider.destroy();
+        currentProvider = null;
+    }
+
+    currentActiveToken = newToken;
+
+    if (!newToken) {
+        console.log('🛑 [Yjs] Token cleared. Provider remains disconnected.');
+        return;
     }
 
     // Create new provider with token
     currentProvider = createProvider(newToken);
 
-    console.log('✅ [Yjs] Provider recreated with new token');
+    console.log('✅ [Yjs] Provider recreated and connected with new token');
 }
 
 // 4. Export shared types

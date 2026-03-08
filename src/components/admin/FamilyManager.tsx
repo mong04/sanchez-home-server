@@ -13,6 +13,7 @@ export function FamilyManager() {
     const [generatedLink, setGeneratedLink] = useState<{ userId: string, url: string } | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [copied, setCopied] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         loadUsers();
@@ -35,6 +36,7 @@ export function FamilyManager() {
     const generateMagicLink = async (user: User, type: 'setup' | 'reset') => {
         setIsGenerating(true);
         setGeneratedLink(null);
+        setError(null);
         try {
             const response = await fetch(`${env.PARTYKIT_HOST}/admin/magic-link`, {
                 method: 'POST',
@@ -55,7 +57,7 @@ export function FamilyManager() {
             setGeneratedLink({ userId: user.id, url: data.url });
         } catch (error) {
             console.error("Failed to generate link", error);
-            alert("Error generating link. Ensure you are an Admin.");
+            setError("Error generating link. Ensure you are an Admin.");
         } finally {
             setIsGenerating(false);
         }
@@ -90,6 +92,12 @@ export function FamilyManager() {
                     <RefreshCw className="w-4 h-4 text-slate-400" />
                 </button>
             </div>
+
+            {error && (
+                <div className="m-4 p-3 rounded-xl bg-destructive/10 text-destructive border border-destructive/20 text-sm font-medium animate-in fade-in slide-in-from-top-2">
+                    {error}
+                </div>
+            )}
 
             <div className="divide-y divide-slate-800">
                 {users.map(user => (

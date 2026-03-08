@@ -210,94 +210,7 @@ export default class Server implements Party.Server {
                 return Response.json({ token, user: profile }, { headers: CORS_HEADERS });
             }
 
-            // --- API: PROFILES ---
-            if (url.pathname.endsWith("/family/profiles")) {
-                if (req.method === "GET") {
-                    const profiles = await this.room.storage.get("profiles") || [];
-                    return Response.json(profiles, { headers: CORS_HEADERS });
-                }
 
-                if (req.method === "POST") {
-                    const profile = await req.json() as any;
-                    const profiles = await this.room.storage.get<any[]>("profiles") || [];
-
-                    // Idempotent: Update if exists, else add
-                    const index = profiles.findIndex((p: any) => p.id === profile.id);
-                    if (index >= 0) {
-                        profiles[index] = profile;
-                    } else {
-                        profiles.push(profile);
-                    }
-
-                    await this.room.storage.put("profiles", profiles);
-
-                    // Re-issue token with REAL identity
-                    const newToken = await signToken({
-                        sub: profile.id,
-                        name: profile.name,
-                        role: profile.role
-                    }, this.room.env.PARTYKIT_SECRET as string);
-
-                    return Response.json({ token: newToken, user: profile }, { headers: CORS_HEADERS });
-                }
-            }
-
-            // --- API: PROFILE UPDATE (PATCH) ---
-            // Regex to match /family/profiles/:id
-            const profileUpdateMatch = url.pathname.match(/\/family\/profiles\/([^\/]+)$/);
-            if (profileUpdateMatch) {
-                const getProfileId = profileUpdateMatch[1];
-                const profiles = await this.room.storage.get<any[]>("profiles") || [];
-                const index = profiles.findIndex(p => p.id === getProfileId);
-
-                if (index === -1) {
-                    return Response.json({ error: "Profile not found" }, { status: 404, headers: CORS_HEADERS });
-                }
-
-                if (req.method === "PATCH") {
-                    // Verify user is updating their own profile OR is an admin/parent
-                    if (payload.sub !== getProfileId && payload.role !== "admin" && payload.role !== "parent") {
-                        return Response.json({ error: "Forbidden" }, { status: 403, headers: CORS_HEADERS });
-                    }
-
-                    const updates = await req.json() as any;
-
-                    // SECURITY: Only admins/parents can change roles
-                    if (updates.role && updates.role !== profiles[index].role) {
-                        if (payload.role !== "admin" && payload.role !== "parent") {
-                            console.warn(`⚠️ [Security] Unauthorized role change attempt by ${payload.name}`);
-                            return Response.json({ error: "Forbidden: Only admins can change roles" }, { status: 403, headers: CORS_HEADERS });
-                        }
-                    }
-
-                    // Merge updates
-                    const updatedProfile = { ...profiles[index], ...updates };
-                    profiles[index] = updatedProfile;
-
-                    await this.room.storage.put("profiles", profiles);
-
-                    console.log(`👤 [Profile] Updated profile for: ${updatedProfile.name}`);
-                    return Response.json(updatedProfile, { headers: CORS_HEADERS });
-                }
-
-                if (req.method === "DELETE") {
-                    // SECURITY: Only admins/parents can delete users
-                    if (payload.role !== "admin" && payload.role !== "parent") {
-                        return Response.json({ error: "Forbidden" }, { status: 403, headers: CORS_HEADERS });
-                    }
-
-                    // Prevent deleting yourself (to avoid lockout)
-                    if (payload.sub === getProfileId) {
-                        return Response.json({ error: "Cannot delete your own account" }, { status: 400, headers: CORS_HEADERS });
-                    }
-
-                    profiles.splice(index, 1);
-                    await this.room.storage.put("profiles", profiles);
-
-                    console.log(`🗑️ [Profile] Deleted user: ${getProfileId}`);
-                    return Response.json({ success: true }, { headers: CORS_HEADERS });
-                }
-            }
 
 
 
@@ -387,7 +300,7 @@ export default class Server implements Party.Server {
         console.log('✅ [PartyKit] Connection authorized for:', payload.name);
 
         return onConnect(conn, this.room, {
-            persist: true
+            persist: { mode: "snapshot" }
         });
     }
 }

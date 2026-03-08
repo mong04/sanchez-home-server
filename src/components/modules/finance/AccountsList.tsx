@@ -9,6 +9,7 @@ import { useDeleteAccount } from '../../../hooks/useFinanceData';
 import { CreateAccountModal } from './CreateAccountModal';
 import { EditAccountModal } from './EditAccountModal';
 import { AddTransactionModal } from './AddTransactionModal';
+import { ConfirmModal } from '../../common/ConfirmModal';
 import type { AccountRecord } from '../../../types/pocketbase';
 
 interface AccountsListProps {
@@ -32,6 +33,7 @@ export const AccountsList: React.FC<AccountsListProps> = ({ onCreateAccount, onA
     // Local modal states
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [editingAccount, setEditingAccount] = useState<AccountRecord | null>(null);
+    const [accountToDelete, setAccountToDelete] = useState<AccountRecord | null>(null);
     const [addTransactionAccountId, setAddTransactionAccountId] = useState<string | null>(null);
 
     // Prefer local state if props aren't provided
@@ -150,11 +152,7 @@ export const AccountsList: React.FC<AccountsListProps> = ({ onCreateAccount, onA
                                                         variant="ghost"
                                                         size="icon"
                                                         className="h-10 w-10 md:h-8 md:w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
-                                                        onClick={() => {
-                                                            if (window.confirm('Delete this account and all its transactions?')) {
-                                                                deleteAccount.mutate(account.id);
-                                                            }
-                                                        }}
+                                                        onClick={() => setAccountToDelete(account)}
                                                     >
                                                         <Trash2 className="w-4 h-4 md:w-3.5 md:h-3.5" />
                                                     </Button>
@@ -208,6 +206,17 @@ export const AccountsList: React.FC<AccountsListProps> = ({ onCreateAccount, onA
                 isOpen={!!addTransactionAccountId}
                 onClose={() => setAddTransactionAccountId(null)}
                 preselectedAccountId={addTransactionAccountId || undefined}
+            />
+
+            <ConfirmModal
+                isOpen={!!accountToDelete}
+                title="Delete Account?"
+                description={`This will permanently delete ${accountToDelete?.name} and all associated transactions.`}
+                confirmText="Delete Account"
+                onConfirm={() => {
+                    if (accountToDelete) deleteAccount.mutate(accountToDelete.id);
+                }}
+                onCancel={() => setAccountToDelete(null)}
             />
         </div>
     );

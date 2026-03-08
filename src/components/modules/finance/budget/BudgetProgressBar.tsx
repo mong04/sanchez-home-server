@@ -18,13 +18,14 @@ interface BudgetProgressBarProps {
 function getBarColor(pct: number): string {
     if (pct >= 100) return 'bg-destructive';
     if (pct >= 80) return 'bg-warning';
-    return 'bg-success';
+    // Zen Palette: Muted, peaceful normal state instead of screaming green
+    return 'bg-primary/30 dark:bg-primary/40';
 }
 
 function getTrackColor(pct: number): string {
     if (pct >= 100) return 'bg-destructive/15';
     if (pct >= 80) return 'bg-warning/15';
-    return 'bg-success/15';
+    return 'bg-muted';
 }
 
 export function BudgetProgressBar({

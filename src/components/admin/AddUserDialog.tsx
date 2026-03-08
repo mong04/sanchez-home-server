@@ -5,8 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { UserPlus, X, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
-import { useAuth } from '../../context/AuthContext';
-import { env } from '../../config/env';
+import { useBackend } from '../../providers/BackendProvider';
 
 // --- Schema ---
 const addUserSchema = z.object({
@@ -25,7 +24,7 @@ interface AddUserDialogProps {
 }
 
 export function AddUserDialog({ isOpen, onClose, onUserAdded }: AddUserDialogProps) {
-    const { token } = useAuth();
+    const { adapter } = useBackend();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
@@ -62,10 +61,6 @@ export function AddUserDialog({ isOpen, onClose, onUserAdded }: AddUserDialogPro
         setError(null);
 
         try {
-            const PARTYKIT_HOST = env.PARTYKIT_HOST;
-            const PROTOCOL = window.location.protocol === 'https:' ? 'https:' : 'http:';
-            const API_URL = `${PROTOCOL}//${PARTYKIT_HOST}/parties/main/sanchez-family-os-v1`;
-
             const newUser = {
                 id: uuidv4(),
                 name: data.name,
@@ -73,24 +68,9 @@ export function AddUserDialog({ isOpen, onClose, onUserAdded }: AddUserDialogPro
                 role: data.role,
                 pin: data.initialPin, // Note: storing PIN directly for now based on auth implementation patterns
                 avatar: { type: 'preset', value: '👤' },
-                xp: 0,
-                level: 1,
-                createdAt: new Date().toISOString()
             };
 
-            const response = await fetch(`${API_URL}/family/profiles`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(newUser)
-            });
-
-            if (!response.ok) {
-                const errData = await response.json().catch(() => ({}));
-                throw new Error(errData.error || "Failed to create user");
-            }
+            await adapter.create('users', newUser);
 
             setSuccess(true);
             setTimeout(() => {

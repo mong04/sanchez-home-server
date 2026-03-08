@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useBackend } from '../../providers/BackendProvider';
 import {
     Users, ShieldAlert, Trash2, Shield, Key
 } from 'lucide-react';
-import { env } from '../../config/env';
 import { DeleteUserModal } from './DeleteUserModal';
 import { AdminResetPasswordModal } from './AdminResetPasswordModal';
 
@@ -17,7 +17,8 @@ interface User {
 }
 
 export function UserManagement() {
-    const { user: currentUser, token } = useAuth();
+    const { user: currentUser } = useAuth();
+    const { adapter } = useBackend();
     const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -25,24 +26,14 @@ export function UserManagement() {
     const [userToReset, setUserToReset] = useState<User | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
-    // Import env for host
-    const PARTYKIT_HOST = env.PARTYKIT_HOST;
-    const PROTOCOL = window.location.protocol === 'https:' ? 'https:' : 'http:';
-    const API_URL = `${PROTOCOL}//${PARTYKIT_HOST}/parties/main/sanchez-family-os-v1`;
-
     useEffect(() => {
         fetchUsers();
     }, []);
 
     const fetchUsers = async () => {
         try {
-            const response = await fetch(`${API_URL}/family/profiles`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                setUsers(data);
-            }
+            const data = await adapter.getFullList<User>('users', { sort: 'name' });
+            setUsers(data);
         } catch (err) {
             console.error("Failed to fetch users", err);
             setError("Could not load user list.");
@@ -57,18 +48,7 @@ export function UserManagement() {
         setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u));
 
         try {
-            const response = await fetch(`${API_URL}/family/profiles/${userId}`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ role: newRole })
-            });
-
-            if (!response.ok) {
-                throw new Error("Failed to update role");
-            }
+            await adapter.update('users', userId, { role: newRole });
         } catch (err) {
             console.error("Role update failed", err);
             // Revert on failure
@@ -82,18 +62,9 @@ export function UserManagement() {
 
         setIsDeleting(true);
         try {
-            const response = await fetch(`${API_URL}/family/profiles/${userToDelete.id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (response.ok) {
-                setUsers(users.filter(u => u.id !== userToDelete.id));
-                setUserToDelete(null);
-            } else {
-                const data = await response.json();
-                setError(data.error || "Failed to delete user");
-            }
+            await adapter.delete('users', userToDelete.id);
+            setUsers(users.filter(u => u.id !== userToDelete.id));
+            setUserToDelete(null);
         } catch (err) {
             console.error("Delete failed", err);
             setError("Could not delete user");

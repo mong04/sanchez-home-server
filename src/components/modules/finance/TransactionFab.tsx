@@ -5,6 +5,7 @@ import { useAddTransaction, useCategories, useAccounts, useTransactions } from '
 import { useFinanceStore } from '../../../stores/useFinanceStore';
 import { useBudgetYjs } from '../../../hooks/useBudgetYjs';
 import { formatCurrency } from '../../../lib/utils';
+import { AlertModal } from '../../common/AlertModal';
 
 type Step = 'amount' | 'category' | 'payee';
 
@@ -36,6 +37,9 @@ export function TransactionFab() {
     // Insights State
     const [isSaved, setIsSaved] = useState(false);
     const [savedInsight, setSavedInsight] = useState('');
+
+    // Alert State for Voice
+    const [alertOpen, setAlertOpen] = useState(false);
 
     const { data: categories } = useCategories(txType);
     const addTransaction = useAddTransaction();
@@ -76,7 +80,8 @@ export function TransactionFab() {
                 date: new Date().toISOString(),
                 type: 'normal',
                 payee: lastTransaction.payee,
-                cleared: false
+                cleared: false,
+                isIncome: lastTransaction.isIncome
             });
             generateInsight(lastTransaction.category, Math.abs(lastTransaction.amount));
             setIsSaved(true);
@@ -297,7 +302,7 @@ export function TransactionFab() {
     const startVoiceInput = () => {
         const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
         if (!SpeechRecognition) {
-            alert("Voice input is not supported in this browser.");
+            setAlertOpen(true);
             return;
         }
         triggerHaptic();
@@ -800,6 +805,14 @@ export function TransactionFab() {
                     <Plus className="w-7 h-7 md:w-8 md:h-8" />
                 </motion.div>
             </motion.button>
+
+            <AlertModal
+                isOpen={alertOpen}
+                title="Voice Input Not Supported"
+                description="Speech recognition is not supported natively in this browser. Please type your payee manually or use Chrome/Safari for full support."
+                buttonText="Got it"
+                onClose={() => setAlertOpen(false)}
+            />
         </div>
     );
 }

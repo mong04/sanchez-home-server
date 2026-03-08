@@ -136,10 +136,13 @@ export async function verifySupabaseToken(token: string, supabaseUrl?: string, s
 
         const user = await response.json() as any;
 
+        let rawRole = user.user_metadata?.role || 'parent';
+        if (rawRole === 'partner') rawRole = 'parent';
+
         return {
             sub: user.id,
             name: user.user_metadata?.name || user.email?.split('@')[0] || 'Unknown',
-            role: user.user_metadata?.role || 'parent',
+            role: rawRole,
             partykit_id: user.user_metadata?.partykit_id
         };
     } catch (error) {

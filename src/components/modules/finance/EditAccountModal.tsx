@@ -30,7 +30,8 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({ isOpen, onCl
         if (isOpen && account) {
             setName(account.name);
             setType(account.type);
-            setInitialBalance(account.initialBalance?.toString() || '0');
+            // Show the live balance (from dual-write), falling back to initialBalance
+            setInitialBalance((account.balance ?? account.initialBalance ?? 0).toString());
         }
     }, [isOpen, account]);
 
@@ -52,7 +53,8 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({ isOpen, onCl
                 data: {
                     name: name.trim(),
                     type: type as AccountRecord['type'],
-                    initialBalance: balanceNum
+                    initialBalance: balanceNum,
+                    balance: balanceNum, // Keep balance in sync with what the user sets
                 }
             });
 

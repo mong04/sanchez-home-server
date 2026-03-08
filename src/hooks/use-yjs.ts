@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { provider, persistence, doc } from '../lib/yjs-provider'
+import { getProvider, persistence, doc } from '../lib/yjs-provider'
 
 export function useYjsStatus() {
     const [status, setStatus] = useState({
@@ -10,10 +10,11 @@ export function useYjsStatus() {
 
     useEffect(() => {
         const updateStatus = () => {
+            const provider = getProvider();
             setStatus({
-                peers: provider.awareness?.getStates().size ?? 0,
+                peers: provider?.awareness?.getStates().size ?? 0,
                 synced: persistence?.synced || false,
-                connected: provider.ws?.readyState === WebSocket.OPEN,
+                connected: provider?.ws?.readyState === WebSocket.OPEN,
             })
         }
 
@@ -21,15 +22,17 @@ export function useYjsStatus() {
         updateStatus()
 
         // Listeners
-        provider.on('status', updateStatus)
-        provider.awareness?.on('change', updateStatus)
+        const provider = getProvider();
+        provider?.on('status', updateStatus)
+        provider?.awareness?.on('change', updateStatus)
         if (persistence) {
             persistence.on('synced', updateStatus)
         }
 
         return () => {
-            provider.off('status', updateStatus)
-            provider.awareness?.off('change', updateStatus)
+            const currentProvider = getProvider();
+            currentProvider?.off('status', updateStatus)
+            currentProvider?.awareness?.off('change', updateStatus)
             if (persistence) {
                 persistence.off('synced', updateStatus)
             }

@@ -1,47 +1,29 @@
-import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Landmark, ArrowRight, Wallet, Activity, Receipt, ArrowUpRight, ArrowDownRight, Sparkles, TrendingUp, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { useFinanceStore } from '../../../stores/useFinanceStore';
-import { useAccounts, useTransactions, useBudgetMonth } from '../../../hooks/useFinanceData';
-import { useBudgetYjs } from '../../../hooks/useBudgetYjs';
+import { useAccounts, useTransactions } from '../../../hooks/useFinanceData';
 import { useBills } from '../../../hooks/use-organizer';
 import { Card, CardHeader, CardTitle, CardContent } from '../../common/Card';
 import { formatCurrency } from '../../../lib/utils';
 import { Button } from '../../common/Button';
 
 export function DashboardOverview() {
-    const { currentMonth, setActiveTab } = useFinanceStore();
+    const { setActiveTab, toBeBudgeted: rawTBB } = useFinanceStore();
     const { data: accounts } = useAccounts();
     const { data: transactions } = useTransactions();
-    const { data: budgetMonth } = useBudgetMonth(currentMonth);
-
-    // Yjs connection for To-Be-Budgeted accuracy
-    const { allocations: yjsAllocations } = useBudgetYjs(currentMonth);
-    const [allocations, setAllocations] = useState<Record<string, number>>({});
-
-    useEffect(() => {
-        const update = () => {
-            const current: Record<string, number> = {};
-            yjsAllocations.forEach((val, key) => { current[key] = val; });
-            setAllocations(current);
-        };
-        update(); // initial
-        yjsAllocations.observe(update);
-        return () => yjsAllocations.unobserve(update);
-    }, [yjsAllocations]);
 
     const { getUpcomingBills } = useBills();
 
-    // Derived Financial Data
-    const income = budgetMonth?.income ?? 0;
-    const rollover = budgetMonth?.rollover ?? 0;
-    const totalBudgeted = Object.values(allocations).reduce((sum, val) => sum + (val || 0), 0);
-    const toBeBudgeted = (income + rollover) - totalBudgeted;
+    // TBB comes from the single global source of truth (Zustand ← useGlobalTBB ← Yjs-aware)
+    const toBeBudgeted = rawTBB ?? 0;
 
     const netWorth = accounts?.reduce((sum, acc) => sum + (acc.currentBalance ?? 0), 0) ?? 0;
     const recentTx = transactions?.slice(0, 5) ?? [];
     const upcomingBills = getUpcomingBills(30).slice(0, 3);
+
+    const heroBgClass = toBeBudgeted >= 0 ? 'bg-success' : 'bg-destructive';
+    const heroTextClass = toBeBudgeted >= 0 ? 'text-success-foreground' : 'text-destructive-foreground';
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 h-[calc(100dvh-200px)] lg:h-[calc(100dvh-150px)] overflow-y-auto !scrollbar-hide [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden w-full px-1 pb-12">
@@ -51,19 +33,19 @@ export function DashboardOverview() {
 
                 {/* To Be Budgeted Hero Card */}
                 <Card
-                    className={`group cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden border-0 ${toBeBudgeted >= 0 ? 'bg-success' : 'bg-destructive'}`}
+                    className={`group cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden border-0 ${heroBgClass}`}
                     onClick={() => setActiveTab('budget')}
                 >
                     <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none transition-transform group-hover:scale-110 duration-700" />
 
                     <CardContent className="p-6 md:p-8 flex flex-col justify-between h-full relative z-10">
                         <div className="flex justify-between items-start mb-6">
-                            <h3 className="text-success-foreground font-medium uppercase tracking-wider flex items-center gap-2">
+                            <h3 className={`${heroTextClass} font-medium uppercase tracking-wider flex items-center gap-2`}>
                                 <Sparkles className="w-4 h-4" />
                                 To Be Budgeted
                             </h3>
                             <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm group-hover:bg-white/30 transition-colors">
-                                <ArrowRight className="w-5 h-5 text-white transform group-hover:translate-x-1 transition-transform" />
+                                <ArrowRight className={`w-5 h-5 ${heroTextClass} transform group-hover:translate-x-1 transition-transform`} />
                             </div>
                         </div>
 
@@ -72,11 +54,11 @@ export function DashboardOverview() {
                                 key={toBeBudgeted}
                                 initial={{ scale: 0.95, opacity: 0.8 }}
                                 animate={{ scale: 1, opacity: 1 }}
-                                className="text-5xl md:text-6xl font-bold text-white tracking-tight mb-2"
+                                className={`text-5xl md:text-6xl font-bold ${heroTextClass} tracking-tight mb-2`}
                             >
                                 {formatCurrency(toBeBudgeted)}
                             </motion.div>
-                            <p className="text-success-foreground/90 text-sm font-medium">
+                            <p className={`${heroTextClass} opacity-90 text-sm font-medium`}>
                                 {toBeBudgeted > 0 ? 'Ready to give these dollars a job.' : toBeBudgeted < 0 ? 'You are overbudgeted. Fix this soon.' : 'Every dollar has a job. Perfect.'}
                             </p>
                         </div>

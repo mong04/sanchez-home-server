@@ -62,6 +62,9 @@ export function EventModal({
     // Completion State
     const [isCompleted, setIsCompleted] = useState(false);
 
+    // Error State
+    const [error, setError] = useState<string | null>(null);
+
     // Reset or Load on Open
     useEffect(() => {
         if (isOpen) {
@@ -81,11 +84,11 @@ export function EventModal({
                 if (existingEvent.recurrence) {
                     setRecurrenceFreq(existingEvent.recurrence.frequency);
                     setRecurrenceInterval(existingEvent.recurrence.interval || 1);
-                } else {
                     setRecurrenceFreq('none');
                     setRecurrenceInterval(1);
                 }
                 setEditScope('all');
+                setError(null);
             } else {
                 // Create Mode
                 setTitle('');
@@ -100,6 +103,7 @@ export function EventModal({
                 setRecurrenceFreq('none');
                 setRecurrenceInterval(1);
                 setEditScope('all');
+                setError(null);
             }
         }
     }, [isOpen, existingEvent, initialDate]);
@@ -113,7 +117,7 @@ export function EventModal({
         const end = new Date(`${date}T${endTime}`).getTime();
 
         if (end <= start) {
-            alert('End time must be after start time');
+            setError('End time must be after start time');
             return;
         }
 
@@ -211,13 +215,19 @@ export function EventModal({
                         <ResponsiveTimePicker
                             label="Start"
                             value={startTime}
-                            onChange={handleStartTimeChange}
+                            onChange={(val) => {
+                                handleStartTimeChange(val);
+                                setError(null);
+                            }}
                             required
                         />
                         <ResponsiveTimePicker
                             label="End"
                             value={endTime}
-                            onChange={(val) => setEndTime(val)}
+                            onChange={(val) => {
+                                setEndTime(val);
+                                setError(null);
+                            }}
                             required
                         />
                     </div>
@@ -301,6 +311,12 @@ export function EventModal({
                                 className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary"
                             />
                         </div>
+                    </div>
+                )}
+
+                {error && (
+                    <div className="p-3 my-2 rounded-xl bg-destructive/10 text-destructive border border-destructive/20 text-sm font-medium animate-in fade-in slide-in-from-bottom-2">
+                        {error}
                     </div>
                 )}
 

@@ -115,7 +115,7 @@ export function Modal({
                         )}
 
                         {/* Body */}
-                        <div className="flex-1 min-h-0 px-6 py-5 text-card-foreground">
+                        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 text-card-foreground">
                             {children}
                         </div>
 

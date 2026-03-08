@@ -146,22 +146,38 @@ export function BudgetGrid({ month }: BudgetGridProps) {
         markAsPaidThisMonth(categoryId, month);
     }, [categories, addTransaction, markAsPaidThisMonth, month]);
 
-    const handleEditCommit = useCallback((categoryId: string, name: string, icon: string, groupId: string, isGoal: boolean, targetAmount: number, targetDate: string) => {
+    const handleEditCommit = useCallback((
+        categoryId: string,
+        name: string,
+        icon: string,
+        groupId: string,
+        isGoal: boolean,
+        isRecurring: boolean,
+        amount: number,
+        frequency: 'monthly' | 'quarterly' | 'yearly' | undefined,
+        dueDay: number | undefined,
+        startDate: string
+    ) => {
         const data: Partial<CategoryRecord> = { name, icon };
 
-        // Priority #3: If edited to be a goal, update the amount field without affecting schema
-        if (isGoal) {
-            data.amount = targetAmount;
+        if (isRecurring) {
+            data.isRecurring = true;
+            data.amount = amount;
+            data.frequency = frequency;
+            data.dueDay = dueDay;
+            data.startDate = startDate;
+        } else if (isGoal) {
             data.isRecurring = false;
+            data.amount = amount;
             data.frequency = undefined;
             data.dueDay = undefined;
-            data.startDate = targetDate;
+            data.startDate = startDate;
         } else {
-            // If they turned off the goal toggle (and it wasn't recurring), clear the amount
-            const cat = categories?.find(c => c.id === categoryId);
-            if (cat && !cat.isRecurring) {
-                data.amount = 0;
-            }
+            data.isRecurring = false;
+            data.amount = 0;
+            data.frequency = undefined;
+            data.dueDay = undefined;
+            data.startDate = '';
         }
 
         updateCategory.mutate({ id: categoryId, data });
@@ -252,7 +268,7 @@ export function BudgetGrid({ month }: BudgetGridProps) {
                                                             key={cat.id}
                                                             category={cat}
                                                             budgeted={d.budgeted}
-                                                            absSpent={d.absSpent}
+                                                            activity={d.activity}
                                                             finalAvailable={d.finalAvailable}
                                                             isOverspent={d.isOverspent}
                                                             isUnderGoal={d.isUnderGoal}
@@ -318,7 +334,7 @@ export function BudgetGrid({ month }: BudgetGridProps) {
                                                             key={cat.id}
                                                             category={cat}
                                                             budgeted={d.budgeted}
-                                                            absSpent={d.absSpent}
+                                                            activity={d.activity}
                                                             finalAvailable={d.finalAvailable}
                                                             isOverspent={d.isOverspent}
                                                             isUnderGoal={d.isUnderGoal}
@@ -395,7 +411,7 @@ export function BudgetGrid({ month }: BudgetGridProps) {
                                                                 key={cat.id}
                                                                 category={cat}
                                                                 budgeted={d.budgeted}
-                                                                absSpent={d.absSpent}
+                                                                activity={d.activity}
                                                                 finalAvailable={d.finalAvailable}
                                                                 isOverspent={d.isOverspent}
                                                                 isUnderGoal={d.isUnderGoal}
@@ -445,7 +461,7 @@ export function BudgetGrid({ month }: BudgetGridProps) {
                         onClose={() => setSheetCat(null)}
                         category={sheetCat}
                         budgeted={d.budgeted}
-                        spent={d.absSpent}
+                        spent={Math.abs(d.activity)}
                         onAllocationChange={handleAllocationChange}
                         recurringConfig={d.recurringConfig}
                         isPaid={d.isPaid}

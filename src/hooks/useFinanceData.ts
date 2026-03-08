@@ -24,21 +24,10 @@ export function useAccounts() {
     return useQuery({
         queryKey: [Collections.Accounts],
         queryFn: async (): Promise<AccountWithBalance[]> => {
-            const [raw, allTxs] = await Promise.all([
-                adapter.getFullList<AccountRecord>(Collections.Accounts, { sort: 'name' }),
-                adapter.getFullList<{ account: string; amount?: number }>(Collections.Transactions, {}),
-            ]);
-            const txsByAccount = new Map<string, { amount: number }[]>();
-            for (const tx of allTxs) {
-                const accId = tx.account;
-                if (!txsByAccount.has(accId)) txsByAccount.set(accId, []);
-                txsByAccount.get(accId)!.push({ amount: tx.amount ?? 0 });
-            }
+            const raw = await adapter.getFullList<AccountRecord>(Collections.Accounts, { sort: 'name' });
             return raw.map((acc) => {
-                const txs = txsByAccount.get(acc.id) ?? [];
-                const initialBal = acc.initialBalance ?? 0;
-                const currentBalance = initialBal + txs.reduce((sum, tx) => sum + tx.amount, 0);
-                return { ...acc, currentBalance, transactionCount: txs.length };
+                const currentBalance = acc.balance ?? 0;
+                return { ...acc, currentBalance, transactionCount: 0 };
             });
         },
     });
@@ -53,33 +42,27 @@ export function useCreateAccount() {
             const user = adapter.getCurrentUser();
             const createdAccount = await adapter.create<AccountRecord>(Collections.Accounts, {
                 ...newAccount,
+                balance: newAccount.initialBalance ?? 0,
                 owner: user?.id,
             });
 
-            // Priority #1: Auto-generate Starting Balance transaction if initialBalance > 0
-            if (newAccount.initialBalance && newAccount.initialBalance > 0) {
+            // Priority #1: Auto-generate Starting Balance transaction if initialBalance !== 0
+            if (newAccount.initialBalance && newAccount.initialBalance !== 0) {
                 try {
-                    // Find the system Income category
-                    const categories = await adapter.getFullList<CategoryRecord>(Collections.Categories, {
-                        filter: 'name="Income"',
-                    });
-                    const incomeCat = categories.find(c => c.name === 'Income');
+                    const isPositive = newAccount.initialBalance > 0;
 
-                    if (incomeCat) {
-                        await adapter.create<TransactionRecord>(Collections.Transactions, {
-                            amount: newAccount.initialBalance,
-                            date: new Date().toISOString(),
-                            payee: 'Starting Balance',
-                            category: incomeCat.id,
-                            account: createdAccount.id,
-                            isIncome: true,
-                            cleared: true,
-                            type: 'normal',
-                            createdBy: user?.id,
-                        } as Partial<TransactionRecord>);
-                    } else {
-                        console.warn('[useCreateAccount] Income category not found, skipping Starting Balance transaction.');
-                    }
+                    // Starting balance is an inflow — no category needed (YNAB: goes straight to Ready to Assign)
+                    await adapter.create<TransactionRecord>(Collections.Transactions, {
+                        amount: newAccount.initialBalance,
+                        date: new Date().toISOString(),
+                        payee: 'Starting Balance',
+                        category: '', // No category — income flows to Ready to Assign, not an envelope
+                        account: createdAccount.id,
+                        isIncome: isPositive,
+                        cleared: true,
+                        type: 'starting_balance',
+                        createdBy: user?.id,
+                    } as Partial<TransactionRecord>);
                 } catch (e) {
                     console.error('[useCreateAccount] Failed to create Starting Balance transaction:', e);
                 }
@@ -116,11 +99,46 @@ export function useDeleteAccount() {
 
     return useMutation({
         mutationFn: async (id: string) => {
+            // 1. Fetch all transactions tied to this account
+            const txs = await adapter.getFullList<TransactionRecord>(Collections.Transactions, {
+                filter: `account = "${id}"`,
+            });
+
+            // 2. Revert Category.spent for each transaction before deleting
+            // YNAB Rule: Income txs never wrote to Category.spent, so skip them
+            for (const tx of txs) {
+                try {
+                    if (tx.category && !tx.isIncome) {
+                        const cat = await adapter.getOne<CategoryRecord>(Collections.Categories, tx.category);
+                        await adapter.update<CategoryRecord>(Collections.Categories, cat.id, {
+                            spent: (cat.spent || 0) - (tx.amount || 0),
+                        });
+                    }
+                } catch (e) {
+                    console.warn('[useDeleteAccount] Could not revert category spent for tx', tx.id, e);
+                }
+            }
+
+            // 3. Delete all child transactions (avoids FK constraint blocking the account delete)
+            for (const tx of txs) {
+                try {
+                    await adapter.delete(Collections.Transactions, tx.id);
+                } catch (e) {
+                    console.warn('[useDeleteAccount] Could not delete transaction', tx.id, e);
+                }
+            }
+
+            // 4. Now safely delete the account
             return await adapter.delete(Collections.Accounts, id);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [Collections.Accounts] });
             queryClient.invalidateQueries({ queryKey: [Collections.Transactions] });
+            queryClient.invalidateQueries({ queryKey: [Collections.Categories] });
+            queryClient.invalidateQueries({ queryKey: [Collections.BudgetMonths] });
+        },
+        onError: (err) => {
+            console.error('[useDeleteAccount] Failed to delete account:', err);
         },
     });
 }
@@ -161,10 +179,39 @@ export function useAddTransaction() {
     return useMutation({
         mutationFn: async (newTransaction: Partial<TransactionRecord>) => {
             const user = adapter.getCurrentUser();
-            return await adapter.create<TransactionRecord>(Collections.Transactions, {
+            const tx = await adapter.create<TransactionRecord>(Collections.Transactions, {
                 ...newTransaction,
                 createdBy: user?.id,
             });
+
+            // 1. Dual write for Account Balance
+            if (newTransaction.account && newTransaction.amount) {
+                try {
+                    const account = await adapter.getOne<AccountRecord>(Collections.Accounts, newTransaction.account);
+                    const currentBalance = account.balance || 0;
+                    await adapter.update<AccountRecord>(Collections.Accounts, account.id, {
+                        balance: currentBalance + newTransaction.amount
+                    });
+                } catch (e) {
+                    console.error('[useAddTransaction] Failed to update account balance', e);
+                }
+            }
+
+            // 2. Dual write for Category Spent mapping
+            // YNAB Rule: Income flows ONLY to Ready to Assign (account balance), never to category envelopes
+            if (newTransaction.category && newTransaction.amount && !newTransaction.isIncome) {
+                try {
+                    const category = await adapter.getOne<CategoryRecord>(Collections.Categories, newTransaction.category);
+                    const currentSpent = category.spent || 0;
+                    await adapter.update<CategoryRecord>(Collections.Categories, category.id, {
+                        spent: currentSpent + newTransaction.amount
+                    });
+                } catch (e) {
+                    console.error('[useAddTransaction] Failed to update category spent', e);
+                }
+            }
+
+            return tx;
         },
         onMutate: async (newTransaction) => {
             await queryClient.cancelQueries({ queryKey: [Collections.Transactions] });
@@ -194,6 +241,7 @@ export function useAddTransaction() {
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: [Collections.Transactions] });
             queryClient.invalidateQueries({ queryKey: [Collections.Accounts] });
+            queryClient.invalidateQueries({ queryKey: [Collections.Categories] }); // Keep cat.spent fresh
             queryClient.invalidateQueries({ queryKey: [Collections.BudgetMonths] });
         },
     });
@@ -205,11 +253,65 @@ export function useUpdateTransaction() {
 
     return useMutation({
         mutationFn: async ({ id, data }: { id: string; data: Partial<TransactionRecord> }) => {
-            return adapter.update<TransactionRecord>(Collections.Transactions, id, data);
+            const oldTx = await adapter.getOne<TransactionRecord>(Collections.Transactions, id);
+            const updatedTx = await adapter.update<TransactionRecord>(Collections.Transactions, id, data);
+
+            // Handle Account Dual Write
+            if (data.amount !== undefined || data.account !== undefined) {
+                const oldAmount = oldTx.amount || 0;
+                const newAmount = updatedTx.amount || 0;
+
+                try {
+                    if (oldTx.account === updatedTx.account) {
+                        const diff = newAmount - oldAmount;
+                        if (diff !== 0) {
+                            const acc = await adapter.getOne<AccountRecord>(Collections.Accounts, oldTx.account);
+                            await adapter.update<AccountRecord>(Collections.Accounts, acc.id, { balance: (acc.balance || 0) + diff });
+                        }
+                    } else {
+                        // Revert old, add new
+                        const oldAcc = await adapter.getOne<AccountRecord>(Collections.Accounts, oldTx.account);
+                        await adapter.update<AccountRecord>(Collections.Accounts, oldAcc.id, { balance: (oldAcc.balance || 0) - oldAmount });
+                        const newAcc = await adapter.getOne<AccountRecord>(Collections.Accounts, updatedTx.account);
+                        await adapter.update<AccountRecord>(Collections.Accounts, newAcc.id, { balance: (newAcc.balance || 0) + newAmount });
+                    }
+                } catch (e) {
+                    console.error('[useUpdateTransaction] Failed to update account balances', e);
+                }
+            }
+
+            // Handle Category Dual Write
+            // YNAB Rule: Income never touches category envelopes
+            if ((data.amount !== undefined || data.category !== undefined) && !updatedTx.isIncome) {
+                const oldAmount = oldTx.isIncome ? 0 : (oldTx.amount || 0); // If it WAS income, old category impact was 0
+                const newAmount = updatedTx.amount || 0;
+
+                try {
+                    if (oldTx.category === updatedTx.category) {
+                        const diff = newAmount - oldAmount;
+                        if (diff !== 0) {
+                            const cat = await adapter.getOne<CategoryRecord>(Collections.Categories, oldTx.category);
+                            await adapter.update<CategoryRecord>(Collections.Categories, cat.id, { spent: (cat.spent || 0) + diff });
+                        }
+                    } else {
+                        if (!oldTx.isIncome) {
+                            const oldCat = await adapter.getOne<CategoryRecord>(Collections.Categories, oldTx.category);
+                            await adapter.update<CategoryRecord>(Collections.Categories, oldCat.id, { spent: (oldCat.spent || 0) - oldAmount });
+                        }
+                        const newCat = await adapter.getOne<CategoryRecord>(Collections.Categories, updatedTx.category);
+                        await adapter.update<CategoryRecord>(Collections.Categories, newCat.id, { spent: (newCat.spent || 0) + newAmount });
+                    }
+                } catch (e) {
+                    console.error('[useUpdateTransaction] Failed to update category spent', e);
+                }
+            }
+
+            return updatedTx;
         },
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: [Collections.Transactions] });
             queryClient.invalidateQueries({ queryKey: [Collections.Accounts] });
+            queryClient.invalidateQueries({ queryKey: [Collections.Categories] }); // Keep cat.spent fresh
             queryClient.invalidateQueries({ queryKey: [Collections.BudgetMonths] });
         },
     });
@@ -221,11 +323,29 @@ export function useDeleteTransaction() {
 
     return useMutation({
         mutationFn: async (id: string) => {
-            return await adapter.delete(Collections.Transactions, id);
+            const oldTx = await adapter.getOne<TransactionRecord>(Collections.Transactions, id);
+            await adapter.delete(Collections.Transactions, id);
+
+            try {
+                if (oldTx.account) {
+                    const acc = await adapter.getOne<AccountRecord>(Collections.Accounts, oldTx.account);
+                    await adapter.update<AccountRecord>(Collections.Accounts, acc.id, { balance: (acc.balance || 0) - (oldTx.amount || 0) });
+                }
+                // YNAB Rule: Income never touched category envelopes, so nothing to revert
+                if (oldTx.category && !oldTx.isIncome) {
+                    const cat = await adapter.getOne<CategoryRecord>(Collections.Categories, oldTx.category);
+                    await adapter.update<CategoryRecord>(Collections.Categories, cat.id, { spent: (cat.spent || 0) - (oldTx.amount || 0) });
+                }
+            } catch (e) {
+                console.error('[useDeleteTransaction] Failed to revert balances', e);
+            }
+
+            return true;
         },
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: [Collections.Transactions] });
             queryClient.invalidateQueries({ queryKey: [Collections.Accounts] });
+            queryClient.invalidateQueries({ queryKey: [Collections.Categories] }); // Keep cat.spent fresh
             queryClient.invalidateQueries({ queryKey: [Collections.BudgetMonths] });
         },
     });

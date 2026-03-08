@@ -166,7 +166,6 @@ export class PocketBaseAdapter implements BackendAdapter {
             username: record.username,
             name: record.name ?? record.username ?? '',
             avatar: record.avatar,
-            partykit_id: record.partykit_id,
             role: record.role ?? 'member',
         };
     }

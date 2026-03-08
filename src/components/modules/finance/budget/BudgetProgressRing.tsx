@@ -33,7 +33,7 @@ export function BudgetProgressRing({
         ? 'stroke-destructive'
         : isNearLimit
             ? 'stroke-warning'
-            : 'stroke-success';
+            : 'stroke-primary/30 dark:stroke-primary/40';
 
     const displayPct = budgeted > 0 ? Math.round(pct * 100) : 0;
 
@@ -62,7 +62,7 @@ export function BudgetProgressRing({
                         'transition-all duration-500',
                         isOverspent ? 'stroke-destructive/15' :
                             isNearLimit ? 'stroke-warning/15' :
-                                'stroke-success/15'
+                                'stroke-muted'
                     )}
                 />
                 {/* Fill */}

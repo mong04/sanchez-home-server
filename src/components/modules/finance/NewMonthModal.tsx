@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Modal } from '../../common/Modal';
 import { Button } from '../../common/Button';
-import { useBudgetMonth } from '../../../hooks/useFinanceData';
+import { useFinanceStore } from '../../../stores/useFinanceStore';
 import { formatCurrency } from '../../../lib/utils';
 import { Calendar, Copy, Calculator, Users } from 'lucide-react';
 
@@ -16,7 +16,6 @@ interface NewMonthModalProps {
 }
 
 export function NewMonthModal({
-    month,
     isOpen,
     onClose,
     onStartFresh,
@@ -24,11 +23,9 @@ export function NewMonthModal({
     onUseAverage,
     isPartnerOnline = false
 }: NewMonthModalProps) {
-    const { data: budgetMonth, isLoading } = useBudgetMonth(month);
-
-    const income = budgetMonth?.income || 0;
-    const rollover = budgetMonth?.rollover || 0;
-    const totalAvailable = income + rollover;
+    // Single source of truth: global TBB from Zustand (← useGlobalTBB ← Yjs-aware)
+    const { toBeBudgeted: rawTBB } = useFinanceStore();
+    const totalAvailable = rawTBB ?? 0;
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Welcome to a New Month">
@@ -41,13 +38,11 @@ export function NewMonthModal({
                 >
                     <p className="text-sm font-medium text-success uppercase tracking-widest mb-2">Available to Assign</p>
                     <h2 className="text-5xl font-bold tracking-tight text-foreground">
-                        {isLoading ? '...' : formatCurrency(totalAvailable)}
+                        {formatCurrency(totalAvailable)}
                     </h2>
-                    <div className="flex gap-4 justify-center mt-3 text-sm text-muted-foreground font-medium">
-                        <span>Income: {formatCurrency(income)}</span>
-                        <span>•</span>
-                        <span>Rollover: {formatCurrency(rollover)}</span>
-                    </div>
+                    <p className="mt-3 text-sm text-muted-foreground font-medium">
+                        Ready to give every dollar a job
+                    </p>
                 </motion.div>
 
                 <div className="w-full flex flex-col gap-3">

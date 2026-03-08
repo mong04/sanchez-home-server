@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext'; // Profiles, XP
 import { useChores, useBills } from './use-organizer'; // Chores, Bills
-import { provider } from '../lib/yjs-provider'; // Presence, Connection
+import { getProvider } from '../lib/yjs-provider'; // Presence, Connection
 
 export interface AdminStats {
     onlineUsers: number;
@@ -26,18 +26,7 @@ export function useAdminStats(): AdminStats {
     const totalXP = profiles.reduce((acc, profile) => acc + (profile.xp || 0), 0);
 
     // 2. Active Chores (incomplete)
-    const activeChoresCount = chores.length; // 'items' from useChores returns all chores. 
-    // Wait, useChores returns *all* chores? 
-    // usage in SmartPlanner: const { items: chores } = useChores(). 
-    // And it has 'lastCompleted'. We should check if they are "due". 
-    // For now, let's just count *all* chores in the system as "managed chores".
-    // Or closer to "Today's Mission" from CommandCenter?
-    // CommandCenter uses `getMyActiveChores`.
-    // Let's filter for *any* chore that is not completed "today" if we can, 
-    // but the schema only has `lastCompleted`.
-    // A simple metric for now: Total configured chores.
-    // Or maybe "Chores completed today"?
-    // Let's stick to "Total Chores Configured" or similar for a "System Overview".
+    const activeChoresCount = chores.length;
 
     // 3. Upcoming Bills (Next 30 days)
     const upcomingBillsCount = getUpcomingBills(30).length;
@@ -49,9 +38,8 @@ export function useAdminStats(): AdminStats {
     useEffect(() => {
         // Pulse/Presence
         const updatePresence = () => {
-            if (provider.awareness) {
-                // Count unique clientIDs or look at states
-                // awareness.getStates() returns a Map<clientID, state>
+            const provider = getProvider();
+            if (provider?.awareness) {
                 const states = provider.awareness.getStates();
                 setOnlineUsers(states.size);
             }
@@ -63,22 +51,20 @@ export function useAdminStats(): AdminStats {
         };
 
         // Listeners
-        provider.awareness?.on('change', updatePresence);
-        provider.on('status', updateStatus);
+        const provider = getProvider();
+        provider?.awareness?.on('change', updatePresence);
+        provider?.on('status', updateStatus);
 
         // Initial check
         updatePresence();
-        // We can't easily check current connection status from the 'provider' object wrapper 
-        // without a direct 'ws' check, but 'on' handles updates.
-        // If we want initial status, we might assume 'connecting' until event fires, 
-        // or check provider.ws?.readyState.
-        if (provider.ws?.readyState === 1) { // OPEN
+        if (provider?.ws?.readyState === 1) { // OPEN
             setSystemStatus('connected');
         }
 
         return () => {
-            provider.awareness?.off('change', updatePresence);
-            provider.off('status', updateStatus);
+            const currentProvider = getProvider();
+            currentProvider?.awareness?.off('change', updatePresence);
+            currentProvider?.off('status', updateStatus);
         };
     }, []);
 

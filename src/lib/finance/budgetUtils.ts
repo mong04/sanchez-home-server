@@ -97,7 +97,7 @@ export async function calculateSpentForCategory(categoryId: string, month: strin
     const end = endOfMonth(start);
 
     const txs = await adapter.getFullList<{ amount: number }>(Collections.Transactions, {
-        filter: `category="${categoryId}" && date >= "${format(start, 'yyyy-MM-dd')}" && date <= "${format(end, 'yyyy-MM-dd')}"`,
+        filter: `category="${categoryId}" && date >= "${format(start, 'yyyy-MM-dd')} 00:00:00" && date <= "${format(end, 'yyyy-MM-dd')} 23:59:59"`,
     });
 
     return txs.reduce((sum, tx) => sum + Math.abs(tx.amount || 0), 0);
@@ -112,15 +112,16 @@ export async function calculateIncomeForMonth(month: string, adapter: BackendAda
 
     // Sum all transaction where isIncome = true in this month
     const txs = await adapter.getFullList<{ amount: number }>(Collections.Transactions, {
-        filter: `isIncome=true && date >= "${format(start, 'yyyy-MM-dd')}" && date <= "${format(end, 'yyyy-MM-dd')}"`,
+        filter: `isIncome=true && date >= "${format(start, 'yyyy-MM-dd')} 00:00:00" && date <= "${format(end, 'yyyy-MM-dd')} 23:59:59"`,
     });
 
     return txs.reduce((sum, tx) => sum + Math.abs(tx.amount || 0), 0);
 }
 
 /**
- * Calculates "To Be Budgeted" = income + rollover - sum(all allocated amounts).
- * This is the core zero-based budgeting equation.
+ * @deprecated — DO NOT USE. This legacy per-month formula is no longer the source of truth.
+ * TBB is now calculated globally via `useGlobalTBB` (Yjs-aware) and stored in `useFinanceStore`.
+ * All UI components should read TBB from `useFinanceStore().toBeBudgeted`.
  */
 export function calculateToBeBudgeted(
     budget: BudgetMonthRecord,

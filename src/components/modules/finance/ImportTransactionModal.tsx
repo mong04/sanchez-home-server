@@ -86,6 +86,7 @@ export const ImportTransactionModal: React.FC<ImportTransactionModalProps> = ({ 
                             payee: payee,
                             notes: notes,
                             cleared: true,
+                            isIncome: amount > 0,
                         });
                         importedRows++;
                     } catch (err) {

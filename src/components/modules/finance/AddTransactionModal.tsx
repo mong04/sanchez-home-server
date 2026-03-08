@@ -43,7 +43,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         setError('');
 
         if (!accountId) return setError('Please select an account');
-        if (!categoryId) return setError('Please select a category');
+        if (type === 'expense' && !categoryId) return setError('Please select a category');
         if (!payee.trim()) return setError('Please enter a payee');
 
         const amountNum = parseFloat(amount);
@@ -52,12 +52,13 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         try {
             await addTransaction.mutateAsync({
                 account: accountId,
-                category: categoryId,
+                ...(categoryId ? { category: categoryId } : {}),
                 amount: type === 'expense' ? -Math.abs(amountNum) : Math.abs(amountNum),
                 payee: payee.trim(),
                 date: new Date(date).toISOString(),
                 notes: notes.trim(),
-                cleared: false, // Set to false to allow for future reconciliation with bank statements
+                cleared: false,
+                isIncome: type === 'income', // CRITICAL for TBB
             });
 
             // Reset and close

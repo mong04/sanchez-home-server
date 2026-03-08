@@ -4,7 +4,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
 import { Loading } from './components/common/Loading';
 import { GlobalNotifications } from './components/common/GlobalNotifications';
-import { doc, provider } from './lib/yjs-provider';
+import { doc, getProvider } from './lib/yjs-provider';
 
 function App() {
   const [isSyncing, setIsSyncing] = useState(true);
@@ -29,11 +29,11 @@ function App() {
       // Optional: could handle connection status here
     };
 
-    provider.on('status', handleStatus);
+    getProvider()?.on('status', handleStatus);
 
     return () => {
       clearTimeout(debounceTimer);
-      provider.off('status', handleStatus);
+      getProvider()?.off('status', handleStatus);
       doc.off('update', updateListener);
     };
   }, []);

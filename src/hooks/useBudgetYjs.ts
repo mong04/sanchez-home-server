@@ -19,39 +19,88 @@ interface UseBudgetYjsReturn {
     peerCount: number;
 }
 
+interface YjsCacheEntry {
+    doc: Y.Doc;
+    provider: YPartyKitProvider;
+    refCount: number;
+}
+
+const providerCache = new Map<string, YjsCacheEntry>();
+const cleanupTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
 export function useBudgetYjs(month: string): UseBudgetYjsReturn {
     const { token } = useAuth();
     const [isConnected, setIsConnected] = useState(false);
     const [peerCount, setPeerCount] = useState(0);
     const [, forceUpdate] = useState(0);
 
-    // Create a new Yjs doc per month
-    const doc = useMemo(() => new Y.Doc(), [month]);
+    // Get or create cached provider singleton per connection combination
+    const { doc, provider } = useMemo(() => {
+        const cacheKey = `${month}-${token || 'anon'}`;
+        let entry = providerCache.get(cacheKey);
 
-    // Create WebSocket provider per month
-    const provider = useMemo(() => {
-        const p = new YPartyKitProvider(
-            SYNC_CONFIG.PARTYKIT_HOST,
-            `budget-${month}`,
-            doc,
-            {
-                connect: false,
-                params: { token: token || '' }
-            }
-        );
-        if (token) {
-            p.connect();
+        if (!entry) {
+            const newDoc = new Y.Doc();
+            const newProvider = new YPartyKitProvider(
+                SYNC_CONFIG.PARTYKIT_HOST,
+                `budget-${month}`,
+                newDoc,
+                {
+                    connect: false,
+                    params: { token: token || '' }
+                }
+            );
+            entry = { doc: newDoc, provider: newProvider, refCount: 0 };
+            providerCache.set(cacheKey, entry);
         }
-        return p;
-    }, [month, doc, token]);
+
+        return entry;
+    }, [month, token]);
 
     const allocations = useMemo(() => doc.getMap<number>("allocations"), [doc]);
+
+    // Reference Context Lifecycle Tracking to prevent multi-socket React mount tearing
+    useEffect(() => {
+        const cacheKey = `${month}-${token || 'anon'}`;
+        const entry = providerCache.get(cacheKey);
+        if (!entry) return;
+
+        entry.refCount += 1;
+
+        if (cleanupTimers.has(cacheKey)) {
+            clearTimeout(cleanupTimers.get(cacheKey)!);
+            cleanupTimers.delete(cacheKey);
+        }
+
+        if (entry.refCount === 1 && token) {
+            entry.provider.connect();
+        }
+
+        return () => {
+            const currentEntry = providerCache.get(cacheKey);
+            if (currentEntry) {
+                currentEntry.refCount -= 1;
+
+                if (currentEntry.refCount <= 0) {
+                    const timer = setTimeout(() => {
+                        currentEntry.provider.disconnect();
+                        currentEntry.provider.destroy();
+                        providerCache.delete(cacheKey);
+                        cleanupTimers.delete(cacheKey);
+                    }, 2500); // Wait out ghost StrictMode reconnects
+                    cleanupTimers.set(cacheKey, timer);
+                }
+            }
+        };
+    }, [month, token]);
 
     // Track connection status
     useEffect(() => {
         const handleStatus = (event: { status: string }) => {
             setIsConnected(event.status === 'connected');
         };
+
+        setIsConnected((provider as any).wsconnected || false);
 
         provider.on('status', handleStatus);
         return () => {
@@ -64,16 +113,21 @@ export function useBudgetYjs(month: string): UseBudgetYjsReturn {
         const awareness = provider.awareness;
         if (!awareness) return;
 
+        let timer: ReturnType<typeof setTimeout>;
         const handleChange = () => {
-            // Debounce peer count updates to avoid UI flickering
-            const count = awareness.getStates().size - 1;
-            setTimeout(() => {
+            // Because duplicate tabs share 1 connection via cache, this purely represents cross-device peers
+            const count = Math.max(0, awareness.getStates().size - 1);
+            clearTimeout(timer);
+            timer = setTimeout(() => {
                 setPeerCount(count);
-            }, 1000);
+            }, 600);
         };
+
+        handleChange();
 
         awareness.on('change', handleChange);
         return () => {
+            clearTimeout(timer);
             awareness.off('change', handleChange);
         };
     }, [provider]);
@@ -84,14 +138,6 @@ export function useBudgetYjs(month: string): UseBudgetYjsReturn {
         allocations.observe(observer);
         return () => allocations.unobserve(observer);
     }, [allocations]);
-
-    // Clean up provider on unmount or month change
-    useEffect(() => {
-        return () => {
-            provider.disconnect();
-            provider.destroy();
-        };
-    }, [provider]);
 
     const setAllocation = useCallback(
         (categoryId: string, amount: number) => {

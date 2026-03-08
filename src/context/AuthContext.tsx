@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import Cookies from 'js-cookie';
-import { env } from '../config/env';
-import { updateProviderToken } from '../lib/yjs-provider';
+import { updateProviderToken, disconnectProvider } from '../lib/yjs-provider';
 import { useBackend } from '../providers/BackendProvider';
 import type { User } from '../types/schema';
 
@@ -67,18 +66,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     });
                     updateProviderToken(currentToken);
 
-                    const fetchedProfiles = await fetchProfiles(currentToken);
-                    const pkId = (currentUser as any).partykit_id;
-                    if (pkId) {
-                        const profile = fetchedProfiles.find(p => p.id === pkId);
-                        if (profile) {
-                            setUser(profile);
-                            localStorage.setItem('sfos_user', JSON.stringify(profile));
-                        }
-                    } else {
-                        setUser(currentUser as User);
-                        localStorage.setItem('sfos_user', JSON.stringify(currentUser));
-                    }
+                    await fetchProfiles();
+                    setUser(currentUser as User);
+                    localStorage.setItem('sfos_user', JSON.stringify(currentUser));
                 } else {
                     // Confirmed no session
                     setIsAuthenticated(false);
@@ -91,6 +81,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             } catch (error) {
                 console.error('[AuthContext] Failed to initialize auth:', error);
                 // No longer needed
+            } finally {
+                if (isMounted) setIsLoading(false);
             }
         };
 
@@ -116,20 +108,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             if (currentToken && currentUser) {
-                const fetchedProfiles = await fetchProfiles(currentToken);
-                const pkId = (currentUser as any).partykit_id;
-
-                if (pkId) {
-                    const profile = fetchedProfiles.find(p => p.id === pkId);
-                    if (profile) {
-                        const fullUser = { ...profile, partykit_id: pkId };
-                        setUser(fullUser);
-                        localStorage.setItem('sfos_user', JSON.stringify(fullUser));
-                    }
-                } else {
-                    setUser(currentUser as User);
-                    localStorage.setItem('sfos_user', JSON.stringify(currentUser));
-                }
+                await fetchProfiles();
+                setUser(currentUser as User);
+                localStorage.setItem('sfos_user', JSON.stringify(currentUser));
             } else {
                 setUser(null);
                 setProfiles([]);
@@ -144,30 +125,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
     }, [adapter]);
 
-    const getPartyKitUrl = () => {
-        const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-        return `${protocol}//${env.PARTYKIT_HOST}`;
-    };
 
-    const fetchProfiles = async (currentToken?: string): Promise<User[]> => {
-        const tokenToUse = currentToken || token;
-        if (!tokenToUse) return [];
 
+    const fetchProfiles = async (): Promise<User[]> => {
         try {
-            const response = await fetch(`${getPartyKitUrl()}/family/profiles`, {
-                headers: {
-                    'Authorization': `Bearer ${tokenToUse}`
-                }
-            });
-
-            if (response.ok) {
-                const data = await response.json() as User[];
-                setProfiles(data);
-                return data;
-            }
-            return [];
+            const data = await adapter.getFullList<User>('users', { sort: 'name' });
+            setProfiles(data);
+            return data;
         } catch (error) {
-            console.error("Failed to fetch profiles", error);
+            console.error("[AuthContext] Failed to fetch profiles from adapter:", error);
             return [];
         }
     };
@@ -185,10 +151,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const logout = async () => {
         setIsLoading(true);
         try {
-            await adapter.signOut();
-        } catch (err) {
-            console.error('[AuthContext] Sign out error:', err);
-        } finally {
+            disconnectProvider();
+
+            // 1. Immediately sever local state so the UI reacts instantly
             setIsAuthenticated(false);
             setToken(null);
             setUser(null);
@@ -196,94 +161,65 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             localStorage.removeItem('sfos_user');
             Cookies.remove('auth_token');
             sessionStorage.clear();
+
+            // 2. Aggressively wipe the underlying Supabase local storage tokens manually
+            // This prevents Supabase from restoring the session if the network call fails
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+                    localStorage.removeItem(key);
+                }
+            }
+
+            // 3. Attempt to notify the Supabase server, but timeout if it hangs
+            await Promise.race([
+                adapter.signOut(),
+                new Promise(resolve => setTimeout(resolve, 2000))
+            ]);
+        } catch (err) {
+            console.error('[AuthContext] Sign out error:', err);
+        } finally {
             setIsLoading(false);
         }
     };
 
-    const selectProfile = async (profileId: string) => {
-        console.log(`[selectProfile] Called with profileId:`, profileId);
-        const currentUser = adapter.getCurrentUser();
-        console.log(`[selectProfile] adapter.getCurrentUser() returned:`, currentUser);
-
-        if (!currentUser) {
-            throw new Error(`[selectProfile] FATAL: currentUser is null! Adapter is not authenticated.`);
-        }
-
-        try {
-            console.log(`[selectProfile] Calling adapter.update for user ID:`, currentUser.id);
-            await adapter.update('users', currentUser.id, { partykit_id: profileId });
-            console.log(`[selectProfile] adapter.update SUCCESS!`);
-
-            const selectedProfile = profiles.find(p => p.id === profileId);
-            if (selectedProfile) {
-                const fullUser = { ...selectedProfile, partykit_id: profileId };
-                console.log(`[selectProfile] Setting fullUser:`, fullUser);
-                setUser(fullUser);
-                localStorage.setItem('sfos_user', JSON.stringify(fullUser));
-            } else {
-                console.warn(`[selectProfile] Warning: Profile not found in 'profiles' array!`);
-            }
-        } catch (error) {
-            console.error("Error selecting profile:", error);
-            throw error;
-        }
+    // Because Auth users ARE the profiles now, 'selectProfile' is obsolete in a pure DB flow
+    // A kid without an email will log in via a PIN flow we will build later, which just sets the currentUser.
+    const selectProfile = async () => {
+        console.warn(`[selectProfile] is deprecated as profiles are now natively Auth users. Attempting to switch user...`);
+        // If we really need this for PIN switching, we'll need a backend-supported "impersonate" or PIN login.
+        // For now, this just warns.
+        throw new Error("selectProfile is deprecated. Users must log in directly via Supabase Auth.");
     };
 
     const createProfile = async (profileData: Omit<User, 'id'>) => {
-        const currentUser = adapter.getCurrentUser();
-        if (!currentUser) return;
-
         try {
-            const newProfileId = crypto.randomUUID();
-            const newProfile: User = { ...profileData, id: newProfileId };
-            const response = await fetch(`${getPartyKitUrl()}/family/profiles`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(newProfile)
-            });
-
-            if (!response.ok) throw new Error("Failed to create profile");
-
-            await adapter.update('users', currentUser.id, { partykit_id: newProfileId });
-            const fullUser = { ...newProfile, partykit_id: newProfileId };
-            setUser(fullUser);
-            localStorage.setItem('sfos_user', JSON.stringify(fullUser));
+            // Note: In Supabase, creating a 'user' record in the public table doesn't create an Auth user.
+            // We'll just create the public record. Kids can log in via PIN later by looking up this record.
+            const newProfile = await adapter.create<User>('users', profileData);
             setProfiles(prev => [...prev, newProfile]);
         } catch (error) {
-            console.error("Error creating profile:", error);
+            console.error("Error creating profile via adapter:", error);
             throw error;
         }
     };
 
     const updateProfile = async (profileId: string, updates: Partial<User>) => {
         try {
-            const response = await fetch(`${getPartyKitUrl()}/family/profiles/${profileId}`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(updates)
-            });
-
-            if (!response.ok) throw new Error("Failed to update profile");
-            const updatedProfile = await response.json();
+            const updatedProfile = await adapter.update<User>('users', profileId, updates);
             setProfiles(prev => prev.map(p => p.id === profileId ? updatedProfile : p));
             if (user?.id === profileId) {
-                const fullUser = { ...updatedProfile, partykit_id: profileId };
-                setUser(fullUser);
-                localStorage.setItem('sfos_user', JSON.stringify(fullUser));
+                setUser(updatedProfile);
+                localStorage.setItem('sfos_user', JSON.stringify(updatedProfile));
             }
         } catch (error) {
-            console.error("Error updating profile:", error);
+            console.error("Error updating profile via adapter:", error);
             throw error;
         }
     };
 
     const updatePassword = async (current: string, newPass: string, confirmPass: string) => {
+        // ... (Keep existing implementation)
         const currentUser = adapter.getCurrentUser();
         if (!currentUser) throw new Error("Not authenticated");
 

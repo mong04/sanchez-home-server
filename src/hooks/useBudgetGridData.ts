@@ -20,13 +20,16 @@ import { useRecurringStore } from '../store/useRecurringStore';
 import { useFinanceStore } from '../stores/useFinanceStore';
 import { format, isToday, isTomorrow, differenceInDays, parseISO } from 'date-fns';
 import { DEFAULT_GROUPS, getGroupIdForCategory } from '../components/modules/finance/budget/BudgetGroupHeader';
-import type { CategoryRecord } from '../types/pocketbase';
+import type { CategoryRecord, BudgetMonthRecord } from '../types/pocketbase';
+import { useQuery } from '@tanstack/react-query';
+import { useBackend } from '../providers/BackendProvider';
+import { Collections } from '../types/pocketbase';
 import type { RecurringConfig } from '../store/useRecurringStore';
 
 // ─── Return type for per-category derived data ───
 export interface CategoryDerivedData {
     budgeted: number;
-    absSpent: number;
+    activity: number;  // Signed: negative = spending, positive = refunds (YNAB Activity column)
     finalAvailable: number;
     isOverspent: boolean;
     isRecurring: boolean;
@@ -55,6 +58,12 @@ export function useBudgetGridData(month: string) {
         markAsPaidThisMonth,
         isPaidThisMonth,
     } = useRecurringStore();
+
+    const { adapter } = useBackend();
+    const { data: budgetMonths = [] } = useQuery({
+        queryKey: [Collections.BudgetMonths, 'all'],
+        queryFn: async () => adapter.getFullList<BudgetMonthRecord>(Collections.BudgetMonths, {}),
+    });
 
     // ─── Viewport detection ───
     const [isMobile, setIsMobile] = useState(false);
@@ -168,9 +177,20 @@ export function useBudgetGridData(month: string) {
     // ─── Per-category derived data helper ───
     const getCategoryData = useCallback((cat: CategoryRecord): CategoryDerivedData => {
         const budgeted = localAllocations[cat.id] || 0;
-        const spent = spentByCategory[cat.id] || 0;
-        const absSpent = Math.abs(spent);
-        const finalAvailable = budgeted - absSpent;
+        const activity = spentByCategory[cat.id] || 0; // Signed: -50 = spent, +20 = refund
+
+        // 🌟 The YNAB Standard 🌟
+        // Budgeted = This Month
+        // Activity (spent) = This Month
+        // finalAvailable = Global O(1) Cache Limit -> (All assignments ever) + (Global spent)
+        let totalAssignedGlobally = localAllocations[cat.id] || 0;
+        budgetMonths.forEach(bm => {
+            if (bm.month !== month && bm.allocations && bm.allocations[cat.id]) {
+                totalAssignedGlobally += bm.allocations[cat.id];
+            }
+        });
+        const finalAvailable = totalAssignedGlobally + (cat.spent || 0); // spent is algebraically correct
+
         const isOverspent = finalAvailable < 0;
         const recurringConfig = getRecurringForCategory(cat.id, cat);
         const isRecurring = recurringConfig !== null && isDueThisMonth(cat, month);
@@ -184,8 +204,8 @@ export function useBudgetGridData(month: string) {
         const isGoal = targetAmount > 0;
         const goalProgress = isGoal ? Math.min(100, Math.max(0, (finalAvailable / targetAmount) * 100)) : 0;
 
-        return { budgeted, absSpent, finalAvailable, isOverspent, isRecurring, isPaid, isUnderGoal, dueText, recurringConfig, isGoal, targetAmount, goalProgress };
-    }, [localAllocations, spentByCategory, getRecurringForCategory, isDueThisMonth, isPaidThisMonth, getUpcomingDueDate, month, formatDueText]);
+        return { budgeted, activity, finalAvailable, isOverspent, isRecurring, isPaid, isUnderGoal, dueText, recurringConfig, isGoal, targetAmount, goalProgress };
+    }, [localAllocations, spentByCategory, budgetMonths, month, getRecurringForCategory, isDueThisMonth, isPaidThisMonth, getUpcomingDueDate, formatDueText]);
 
     // ─── Event handlers ───
     const handleAllocationChange = useCallback((categoryId: string, val: string) => {

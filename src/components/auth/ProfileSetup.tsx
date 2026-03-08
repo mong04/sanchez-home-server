@@ -4,7 +4,7 @@ import { Shield, Baby, CheckCircle2, Camera } from 'lucide-react';
 import { AvatarEditor } from '../profile/AvatarEditor';
 
 export function ProfileSetup() {
-    const { createProfile, user: authUser } = useAuth();
+    const { updateProfile, user: authUser } = useAuth();
     const [name, setName] = useState('');
     const [role, setRole] = useState<'parent' | 'kid' | 'admin'>('kid');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -29,21 +29,15 @@ export function ProfileSetup() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!name.trim()) return;
+        if (!name.trim() || !authUser?.id) return;
 
         setIsSubmitting(true);
 
         try {
-            await createProfile({
+            await updateProfile(authUser.id, {
                 name: name.trim(),
                 role: role,
                 avatar: avatar,
-                xp: 0,
-                level: 1,
-                streaks: { current: 0, max: 0, lastActivityDate: 0 },
-                badges: [],
-                activityLog: {},
-                email: authUser?.email || '',
             });
         } catch (error) {
             console.error(error);

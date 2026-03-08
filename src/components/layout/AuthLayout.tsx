@@ -1,6 +1,6 @@
 import { Outlet, Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { ProfileSelection } from '../auth/ProfileSelection';
+import { ProfileSetup } from '../auth/ProfileSetup';
 
 export function AuthLayout() {
     const { isLoading, isAuthenticated, user } = useAuth();
@@ -22,11 +22,11 @@ export function AuthLayout() {
         return <Navigate to="/login" replace />;
     }
 
-    // 3. Authenticated but no profile -> Show Profile Selection/Setup
-    if (user && !(user as any).partykit_id) {
-        return <ProfileSelection />;
+    // 3. Authenticated but no setup name -> Show Onboarding Setup
+    if (user && !user.name) {
+        return <ProfileSetup />;
     }
 
-    // 3. Authenticated & Profiled -> Render child routes
+    // 4. Authenticated & Setup -> Render child routes
     return <Outlet />;
 }

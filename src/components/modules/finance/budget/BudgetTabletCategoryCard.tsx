@@ -12,7 +12,7 @@
 
 import { memo } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Calendar, CheckCircle2, Trash2, Edit2 } from 'lucide-react';
+import { CheckCircle2, Trash2, Edit2 } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
 import { formatCurrency } from '../../../../lib/utils';
 import { CategoryIcon } from '../../../common/CategoryIcon';
@@ -26,7 +26,7 @@ import type { RecurringConfig } from '../../../../store/useRecurringStore';
 interface BudgetTabletCategoryCardProps {
     category: CategoryRecord;
     budgeted: number;
-    absSpent: number;
+    activity: number;
     finalAvailable: number;
     isOverspent: boolean;
     isUnderGoal: boolean;
@@ -47,7 +47,7 @@ interface BudgetTabletCategoryCardProps {
 export const BudgetTabletCategoryCard = memo(function BudgetTabletCategoryCard({
     category: cat,
     budgeted,
-    absSpent,
+    activity,
     finalAvailable,
     isOverspent,
     isUnderGoal,
@@ -80,7 +80,7 @@ export const BudgetTabletCategoryCard = memo(function BudgetTabletCategoryCard({
                 isOverspent && 'border-destructive/30 bg-destructive/5',
                 isUnderGoal && !isOverspent && 'border-warning/30'
             )}
-            aria-label={`${cat.name}: budgeted ${formatCurrency(budgeted)}, spent ${formatCurrency(absSpent)}, available ${formatCurrency(finalAvailable)}`}
+            aria-label={`${cat.name}: budgeted ${formatCurrency(budgeted)}, spent ${formatCurrency(Math.abs(activity))}, available ${formatCurrency(finalAvailable)}`}
         >
             {/* ─── Row 1: Icon + Name + Ring + Available ─── */}
             <div className="flex items-center gap-3 md:gap-4">
@@ -94,36 +94,26 @@ export const BudgetTabletCategoryCard = memo(function BudgetTabletCategoryCard({
 
                 {/* Name + metadata */}
                 <div className="flex flex-col min-w-0 flex-1 gap-0.5">
-                    <div className="flex items-center gap-1.5 flex-wrap text-xs md:text-sm text-muted-foreground mt-0.5">
-                        {isRecurring ? (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-px rounded bg-muted text-[10px] uppercase tracking-wider font-semibold">
-                                <Calendar className="w-3 h-3" />
-                                Bill
-                            </span>
-                        ) : isGoal ? (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-px rounded bg-primary/10 text-primary text-[10px] uppercase tracking-wider font-semibold">
-                                Goal
-                            </span>
-                        ) : null}
-                        <span>
-                            {isGoal ? `Saved ${formatCurrency(finalAvailable)}` : `Spent ${formatCurrency(absSpent)}`}
-                        </span>
-                        {isRecurring && recurringConfig?.amount && (
-                            <span>· Bill {formatCurrency(recurringConfig.amount)}</span>
-                        )}
-                        {isGoal && targetAmount > 0 && (
-                            <span>· Target {formatCurrency(targetAmount)}</span>
-                        )}
-                        {isRecurring && dueText && !isPaid && (
-                            <span className="text-muted-foreground/80">· {dueText}</span>
-                        )}
-                    </div>
+                    <span className="font-bold text-base md:text-lg text-foreground truncate leading-tight mt-0.5">
+                        {cat.name}
+                    </span>
+                    {/* Collapsed Zen Subtitle */}
+                    {(isRecurring || isGoal) && (
+                        <div className="text-xs md:text-sm text-muted-foreground/90 mt-0.5">
+                            {isRecurring && recurringConfig?.amount && (
+                                <span>{dueText || 'Bill'} ({formatCurrency(recurringConfig.amount)})</span>
+                            )}
+                            {isGoal && targetAmount > 0 && !isRecurring && (
+                                <span>Target: {formatCurrency(targetAmount)}</span>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* Progress ring + Available */}
                 <div className="flex items-center gap-2 md:gap-4 shrink-0">
                     <BudgetProgressRing
-                        spent={absSpent}
+                        spent={Math.abs(activity)}
                         budgeted={budgeted}
                         size={48}
                         strokeWidth={4}
@@ -155,7 +145,7 @@ export const BudgetTabletCategoryCard = memo(function BudgetTabletCategoryCard({
             {isGoal ? (
                 <GoalProgressBar targetAmount={targetAmount} savedAmount={finalAvailable} className="mt-4" />
             ) : (
-                <BudgetProgressBar spent={absSpent} budgeted={budgeted} showLabel className="mt-4" />
+                <BudgetProgressBar spent={Math.abs(activity)} budgeted={budgeted} showLabel className="mt-4" />
             )}
 
             {/* ─── Row 3: Inline budget input + Actions ─── */}

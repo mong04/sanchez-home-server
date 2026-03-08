@@ -3,7 +3,7 @@ import { motion, MotionValue } from 'framer-motion';
 import confetti from 'canvas-confetti';
 
 import { useFinanceStore } from '../../../stores/useFinanceStore';
-import { formatCurrency } from '../../../lib/utils';
+import { formatCurrency, cn } from '../../../lib/utils';
 
 interface TbbHeroCardProps {
     month: string;
@@ -32,13 +32,16 @@ export function TbbHeroCard({ className = "" }: TbbHeroCardProps) {
     return (
         <motion.div
             layout
-            className={`@container relative overflow-hidden rounded-3xl p-8 text-center text-primary-foreground shadow-xl transition-colors duration-500
-                ${toBeBudgeted >= 0 ? 'bg-primary' : 'bg-destructive'}
-                ${className}
-            `}
+            className={cn(
+                "@container relative overflow-hidden rounded-[2rem] p-8 text-center text-white shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition-all duration-500",
+                toBeBudgeted >= 0
+                    ? "bg-gradient-to-br from-blue-500 to-indigo-600 border border-indigo-400/20"
+                    : "bg-gradient-to-br from-red-500 to-rose-600 border border-red-400/20",
+                className
+            )}
         >
             <div className="flex flex-col items-center justify-center gap-2">
-                <p className="text-primary-foreground/80 text-base font-medium uppercase tracking-wider">To Be Budgeted</p>
+                <p className="text-white/80 text-base font-bold uppercase tracking-widest drop-shadow-sm">To Be Budgeted</p>
                 <motion.div
                     key={toBeBudgeted}
                     initial={{ scale: 0.9, opacity: 0.8 }}

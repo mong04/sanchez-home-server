@@ -15,7 +15,8 @@ export function InviteScreen() {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState(false);
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
     const [setupToken, setSetupToken] = useState<string | null>(null);
 
     React.useEffect(() => {
@@ -29,14 +30,14 @@ export function InviteScreen() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        setError(false);
+        setError('');
+        setSuccess('');
 
         if (setupToken) {
             // Unused vars: email unused in setup mode
             if (password !== confirmPassword) {
-                setError(true);
+                setError("Passwords do not match");
                 setIsLoading(false);
-                alert("Passwords do not match");
                 return;
             }
 
@@ -48,7 +49,7 @@ export function InviteScreen() {
                 });
 
                 if (response.ok) {
-                    alert("Password set successfully! Please log in.");
+                    setSuccess("Password set successfully! Please log in.");
                     setSetupToken(null); // Switch back to login
                     setPassword('');
                     setConfirmPassword('');
@@ -56,19 +57,18 @@ export function InviteScreen() {
                     window.history.replaceState({}, '', window.location.pathname);
                 } else {
                     const data = await response.json();
-                    alert(data.error || "Failed to set password.");
-                    setError(true);
+                    setError(data.error || "Failed to set password.");
                 }
             } catch (err) {
                 console.error(err);
-                setError(true);
+                setError("An unexpected error occurred.");
             }
         } else {
-            const success = await login(email, password);
-            if (success) {
+            const successLogin = await login(email, password);
+            if (successLogin) {
                 navigate('/');
             } else {
-                setError(true);
+                setError("Invalid email or password.");
                 setPassword('');
             }
         }
@@ -120,6 +120,13 @@ export function InviteScreen() {
                                     />
                                 </div>
                             </div>
+
+                            {error && (
+                                <p className="text-red-400 text-xs text-center animate-in fade-in slide-in-from-top-1">
+                                    {error}
+                                </p>
+                            )}
+
                             <button
                                 type="submit"
                                 disabled={isLoading}
@@ -192,7 +199,8 @@ export function InviteScreen() {
                                         value={email}
                                         onChange={(e) => {
                                             setEmail(e.target.value);
-                                            setError(false);
+                                            setError('');
+                                            setSuccess('');
                                         }}
                                         className={`
                                             w-full bg-slate-950/50 border rounded-xl pl-10 pr-4 py-3 outline-none transition-all duration-300
@@ -231,7 +239,8 @@ export function InviteScreen() {
                                         value={password}
                                         onChange={(e) => {
                                             setPassword(e.target.value);
-                                            setError(false);
+                                            setError('');
+                                            setSuccess('');
                                         }}
                                         className={`
                                             w-full bg-slate-950/50 border rounded-xl pl-10 pr-4 py-3 outline-none transition-all duration-300
@@ -251,7 +260,12 @@ export function InviteScreen() {
 
                         {error && (
                             <p className="text-red-400 text-xs text-center animate-in fade-in slide-in-from-top-1">
-                                Invalid email or password.
+                                {error}
+                            </p>
+                        )}
+                        {success && (
+                            <p className="text-emerald-400 text-xs text-center animate-in fade-in slide-in-from-top-1">
+                                {success}
                             </p>
                         )}
 

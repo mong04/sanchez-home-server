@@ -105,15 +105,39 @@ export class SupabaseAdapter implements BackendAdapter {
     private buildSelect(expand?: string): string {
         if (!expand) return '*';
 
-        const relations = expand.split(',')
-            .map(r => r.trim())
-            .filter(Boolean)
-            .map(r => {
-                const dbName = FIELD_MAP[r] || r;
-                return `${dbName}(*)`;
-            });
+        const relations = expand.split(',').map(r => r.trim()).filter(Boolean);
 
-        return `*, ${relations.join(', ')}`;
+        // Build a nested tree from dot-notation (e.g., "a.b, a.c" -> { a: { b: {}, c: {} } })
+        const tree: Record<string, any> = {};
+        for (const rel of relations) {
+            const parts = rel.split('.');
+            let current = tree;
+            for (const part of parts) {
+                const dbName = FIELD_MAP[part] || part;
+                if (!current[dbName]) {
+                    current[dbName] = {};
+                }
+                current = current[dbName];
+            }
+        }
+
+        // Recursively stringify the tree into Supabase select syntax: "*, a(*, b(*), c(*))"
+        const stringifyTree = (node: Record<string, any>): string => {
+            const keys = Object.keys(node);
+            if (keys.length === 0) return '*';
+            const parts = ['*'];
+            for (const key of keys) {
+                parts.push(`${key}(${stringifyTree(node[key])})`);
+            }
+            return parts.join(', ');
+        };
+
+        const selectParts = ['*'];
+        for (const key of Object.keys(tree)) {
+            selectParts.push(`${key}(${stringifyTree(tree[key])})`);
+        }
+
+        return selectParts.join(', ');
     }
 
     private applyFilter(query: any, filterStr: string) {
@@ -242,6 +266,11 @@ export class SupabaseAdapter implements BackendAdapter {
             result.tags = cleanTags;
         }
 
+        // Map 'parent' to 'partner' natively
+        if (result.role === 'parent') {
+            result.role = 'partner';
+        }
+
         return result;
     }
 
@@ -290,6 +319,11 @@ export class SupabaseAdapter implements BackendAdapter {
                     }
                 }
             }
+        }
+
+        // Map 'partner' back to 'parent'
+        if (result.role === 'partner') {
+            result.role = 'parent';
         }
 
         if (hasExpand) {
@@ -341,7 +375,6 @@ export class SupabaseAdapter implements BackendAdapter {
         if (collection === 'users' && id === this.currentUser?.id) {
             try {
                 const metadataUpdates: any = {};
-                if ('partykit_id' in mappedPayload) metadataUpdates.partykit_id = mappedPayload.partykit_id;
                 if ('name' in mappedPayload) metadataUpdates.name = mappedPayload.name;
                 if ('role' in mappedPayload) metadataUpdates.role = mappedPayload.role;
                 if ('avatar' in mappedPayload) metadataUpdates.avatar = mappedPayload.avatar;
@@ -498,13 +531,15 @@ export class SupabaseAdapter implements BackendAdapter {
     }
 
     private mapUser(user: any): User {
+        let rawRole = user.user_metadata?.role ?? 'member';
+        if (rawRole === 'partner') rawRole = 'parent';
+
         return {
             id: user.id,
             email: user.email ?? '',
             name: user.user_metadata?.name ?? '',
             avatar: user.user_metadata?.avatar,
-            partykit_id: user.user_metadata?.partykit_id,
-            role: user.user_metadata?.role ?? 'member',
+            role: rawRole,
         };
     }
 

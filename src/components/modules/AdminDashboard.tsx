@@ -8,7 +8,7 @@ import { ActivityFeed } from '../ui/dashboard/ActivityFeed';
 import { AddUserDialog } from '../admin/AddUserDialog';
 import { ShieldAlert, Users, CheckSquare, Activity, Wifi, Server, ArrowRight } from 'lucide-react';
 import { Button } from '../common/Button';
-import { provider } from '../../lib/yjs-provider';
+import { getProvider } from '../../lib/yjs-provider';
 import { cn } from '../../lib/utils';
 
 import { UserManagement } from '../admin/UserManagement';
@@ -27,11 +27,16 @@ export function AdminDashboard() {
     const handleForceSync = () => {
         setIsSyncing(true);
         // Force reconnection logic
-        provider.disconnect();
-        setTimeout(() => {
-            provider.connect();
-            setTimeout(() => setIsSyncing(false), 1000); // Visual feedback delay
-        }, 500);
+        const provider = getProvider();
+        if (provider) {
+            provider.disconnect();
+            setTimeout(() => {
+                provider.connect();
+                setTimeout(() => setIsSyncing(false), 1000); // Visual feedback delay
+            }, 500);
+        } else {
+            setIsSyncing(false);
+        }
     };
 
     if (user?.role !== 'admin' && user?.role !== 'parent') {

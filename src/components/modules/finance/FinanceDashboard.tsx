@@ -13,7 +13,7 @@ import { format, addMonths, subMonths, parse } from 'date-fns';
 
 import { useFinanceStore } from '../../../stores/useFinanceStore';
 import { useBudgetYjs } from '../../../hooks/useBudgetYjs';
-import { useBudgetMonth } from '../../../hooks/useFinanceData';
+import { useGlobalTBB } from '../../../hooks/useGlobalTBB';
 import { cn } from '../../../lib/utils';
 import { TransactionFab } from './TransactionFab';
 import { TbbHeroCard } from './TbbHeroCard';
@@ -79,24 +79,28 @@ export function FinanceDashboard() {
     }, []);
 
 
-    // Data hooks
-    const { data: budgetMonth } = useBudgetMonth(currentMonth);
-    const { peerCount, allocations } = useBudgetYjs(currentMonth);
+    // Data hooks — Yjs-aware TBB pipeline
+    const { peerCount, allocations: yjsAllocations } = useBudgetYjs(currentMonth);
+
+    // Track live Yjs allocations as a plain object for useGlobalTBB
+    const [liveAllocations, setLiveAllocations] = useState<Record<string, number>>({});
+    useEffect(() => {
+        const sync = () => {
+            const current: Record<string, number> = {};
+            yjsAllocations.forEach((val, key) => { current[key] = val; });
+            setLiveAllocations(current);
+        };
+        sync();
+        yjsAllocations.observe(sync);
+        return () => yjsAllocations.unobserve(sync);
+    }, [yjsAllocations]);
 
     // Keep global To Be Budgeted state perfectly in sync across all headers and dashboards
-    useEffect(() => {
-        const calculateTbb = () => {
-            const income = budgetMonth?.income ?? 0;
-            const rollover = budgetMonth?.rollover ?? 0;
-            let totalBudgeted = 0;
-            allocations.forEach((val) => { totalBudgeted += (val || 0); });
-            setToBeBudgeted((income + rollover) - totalBudgeted);
-        };
+    const { toBeBudgeted: calculatedTBB } = useGlobalTBB({ currentMonth, liveAllocations });
 
-        calculateTbb();
-        allocations.observe(calculateTbb);
-        return () => allocations.unobserve(calculateTbb);
-    }, [allocations, budgetMonth?.income, budgetMonth?.rollover, setToBeBudgeted]);
+    useEffect(() => {
+        setToBeBudgeted(calculatedTBB);
+    }, [calculatedTBB, setToBeBudgeted]);
 
     // Month Navigation Handlers
     const handlePrevMonth = () => {
@@ -118,34 +122,34 @@ export function FinanceDashboard() {
             {/* --- UNIVERSAL NORMAL FLOW HERO AREA (NOT STICKY - Scrolls away organically) --- */}
             <div ref={heroRef} className="flex flex-col pt-8 px-4 max-w-5xl mx-auto">
                 {/* Dash Header */}
-                <div className="bg-gradient-to-b from-primary/90 via-primary to-primary/90 text-primary-foreground rounded-3xl md:rounded-[2.5rem] shadow-xl p-6 md:p-8 relative overflow-hidden flex flex-col lg:flex-row lg:items-center justify-between gap-6 md:gap-8">
-                    <div className="absolute top-0 right-0 w-64 md:w-96 h-64 md:h-96 bg-primary-foreground/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-                    <div className="hidden lg:block absolute bottom-0 left-0 w-72 h-72 bg-primary-foreground/20 rounded-full blur-3xl translate-y-1/3 -translate-x-1/4 pointer-events-none" />
+                <div className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white rounded-3xl md:rounded-[2.5rem] shadow-xl p-6 md:p-8 relative overflow-hidden flex flex-col lg:flex-row lg:items-center justify-between gap-6 md:gap-8 border border-white/10">
+                    <div className="absolute top-0 right-0 w-64 md:w-96 h-64 md:h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+                    <div className="hidden lg:block absolute bottom-0 left-0 w-72 h-72 bg-white/10 rounded-full blur-3xl translate-y-1/3 -translate-x-1/4 pointer-events-none" />
 
                     <div className="relative z-10 flex flex-col gap-4">
                         <div>
-                            <h1 className="text-3xl lg:text-4xl font-bold tracking-tight">Sanchez Family OS</h1>
-                            <p className="text-primary-foreground font-medium mt-1 flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground" /> Finance Center
+                            <h1 className="text-3xl lg:text-4xl font-bold tracking-tight text-white drop-shadow-sm">Sanchez Family OS</h1>
+                            <p className="text-white/80 font-medium mt-1 flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-white/60" /> Finance Center
                             </p>
                         </div>
 
                         {/* Desktop-only internal Month Nav (optional visual balance) */}
                         {activeTab === 'budget' && (
-                            <div className="hidden lg:flex items-center gap-4 bg-primary-foreground/10 backdrop-blur-md p-1.5 rounded-2xl border border-primary-foreground/20 shadow-inner w-fit">
-                                <button onClick={handlePrevMonth} className="p-2 hover:bg-primary-foreground/20 rounded-xl transition-colors text-primary-foreground"><ChevronLeft className="w-5 h-5" /></button>
-                                <div className="flex flex-col items-center min-w-[130px]">
-                                    <span className="text-sm font-semibold tracking-wide">{displayMonth}</span>
+                            <div className="hidden lg:flex items-center gap-4 bg-white/10 backdrop-blur-md p-1.5 rounded-2xl border border-white/20 shadow-inner w-fit">
+                                <button onClick={handlePrevMonth} className="p-2 hover:bg-white/20 rounded-xl transition-colors text-white"><ChevronLeft className="w-5 h-5" /></button>
+                                <div className="flex flex-col items-center min-w-[130px] text-white">
+                                    <span className="text-sm font-semibold tracking-wide drop-shadow-sm">{displayMonth}</span>
                                     <AnimatePresence>
                                         {peerCount > 1 && (
-                                            <motion.div initial={{ opacity: 0, height: 0, margin: 0 }} animate={{ opacity: 1, height: 'auto', marginTop: 2 }} exit={{ opacity: 0, height: 0, margin: 0 }} className="flex items-center gap-1.5 text-[10px] text-primary-foreground uppercase tracking-wider font-bold overflow-hidden">
-                                                <span className="relative flex h-1.5 w-1.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-foreground opacity-75"></span><span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary-foreground"></span></span>
+                                            <motion.div initial={{ opacity: 0, height: 0, margin: 0 }} animate={{ opacity: 1, height: 'auto', marginTop: 2 }} exit={{ opacity: 0, height: 0, margin: 0 }} className="flex items-center gap-1.5 text-[10px] text-white uppercase tracking-wider font-bold overflow-hidden">
+                                                <span className="relative flex h-1.5 w-1.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span><span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white"></span></span>
                                                 Partner Live
                                             </motion.div>
                                         )}
                                     </AnimatePresence>
                                 </div>
-                                <button onClick={handleNextMonth} className="p-2 hover:bg-primary-foreground/20 rounded-xl transition-colors text-primary-foreground"><ChevronRight className="w-5 h-5" /></button>
+                                <button onClick={handleNextMonth} className="p-2 hover:bg-white/20 rounded-xl transition-colors text-white"><ChevronRight className="w-5 h-5" /></button>
                             </div>
                         )}
                     </div>
@@ -153,7 +157,7 @@ export function FinanceDashboard() {
                     {/* Desktop-only internal TBB Card Component */}
                     {activeTab === 'budget' && (
                         <div className="hidden lg:block relative z-10 flex-1 max-w-[350px] lg:max-w-[450px] min-w-0 shrink">
-                            <TbbHeroCard month={currentMonth} className="!p-4 sm:!p-6" />
+                            <TbbHeroCard month={currentMonth} className="!p-4 sm:!p-6 !bg-white/10 !bg-none backdrop-blur-md border border-white/20 !shadow-none ring-1 ring-white/10" />
                         </div>
                     )}
                 </div>

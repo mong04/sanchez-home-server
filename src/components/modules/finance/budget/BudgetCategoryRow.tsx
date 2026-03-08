@@ -4,7 +4,7 @@
 
 import { useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Edit2, Trash2, Calendar, CheckCircle2 } from 'lucide-react';
+import { Edit2, Trash2, CheckCircle2 } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
 import { formatCurrency } from '../../../../lib/utils';
 import { CategoryIcon } from '../../../common/CategoryIcon';
@@ -18,7 +18,7 @@ import type { RecurringConfig } from '../../../../store/useRecurringStore';
 interface BudgetCategoryRowProps {
     category: CategoryRecord;
     budgeted: number;
-    absSpent: number;
+    activity: number;
     finalAvailable: number;
     isOverspent: boolean;
     isUnderGoal: boolean;
@@ -51,7 +51,7 @@ interface BudgetCategoryRowProps {
 export const BudgetCategoryRow = memo(function BudgetCategoryRow({
     category: cat,
     budgeted,
-    absSpent,
+    activity,
     finalAvailable,
     isOverspent,
     isUnderGoal,
@@ -141,35 +141,21 @@ export const BudgetCategoryRow = memo(function BudgetCategoryRow({
                     {isGoal ? (
                         <GoalProgressBar targetAmount={targetAmount} savedAmount={finalAvailable} className="mt-1" />
                     ) : (
-                        <BudgetProgressBar spent={absSpent} budgeted={budgeted} showLabel className="mt-1 pr-2" />
+                        <BudgetProgressBar spent={Math.abs(activity)} budgeted={budgeted} showLabel className="mt-1 pr-2" />
                     )}
-                    <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                        {isRecurring ? (
-                            <span className="shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-muted text-[9px] text-muted-foreground uppercase tracking-wider font-semibold">
-                                <Calendar className="w-2.5 h-2.5" />
-                                <span>Recur</span>
-                            </span>
-                        ) : isGoal ? (
-                            <span className="shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-primary/10 text-[9px] text-primary uppercase tracking-wider font-semibold">
-                                <span>Goal</span>
-                            </span>
-                        ) : null}
-                        {isRecurring && recurringConfig?.amount && (
-                            <span className={cn('text-[10px] truncate', isUnderGoal ? 'text-warning font-medium' : 'text-muted-foreground')}>
-                                Bill: {formatCurrency(recurringConfig.amount)}
-                            </span>
-                        )}
-                        {isGoal && targetAmount > 0 && (
-                            <span className="text-[10px] text-muted-foreground truncate">
-                                Target: {formatCurrency(targetAmount)}
-                            </span>
-                        )}
-                        {isRecurring && dueText && !isPaid && (
-                            <span className="text-[10px] text-muted-foreground/80 lowercase italic font-normal">
-                                · {dueText}
-                            </span>
-                        )}
-                    </div>
+                    {/* Collapsed Zen Subtitle */}
+                    {(isRecurring || isGoal) && (
+                        <div className="text-[11px] text-muted-foreground/90 mt-0.5">
+                            {isRecurring && recurringConfig?.amount && (
+                                <span className={cn(isUnderGoal && 'text-warning font-medium')}>
+                                    {dueText || 'Bill'} ({formatCurrency(recurringConfig.amount)})
+                                </span>
+                            )}
+                            {isGoal && targetAmount > 0 && !isRecurring && (
+                                <span>Target: {formatCurrency(targetAmount)}</span>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* Hover actions */}
@@ -208,7 +194,7 @@ export const BudgetCategoryRow = memo(function BudgetCategoryRow({
             {/* Col 8–9: Spent */}
             <div role="gridcell" className="col-span-2 flex justify-end items-center">
                 <span className="text-sm text-muted-foreground tabular-nums font-medium">
-                    {formatCurrency(absSpent)}
+                    {formatCurrency(activity)}
                 </span>
             </div>
 
@@ -252,13 +238,13 @@ export const BudgetCategoryRow = memo(function BudgetCategoryRow({
                         {!isPaid && (
                             <button
                                 onClick={() => onMarkPaid(cat)}
-                                className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             >
                                 Mark Paid
                             </button>
                         )}
                         {isPaid && (
-                            <span className="text-[10px] flex items-center gap-1 text-success font-medium">
+                            <span className="text-[10px] flex items-center gap-1 text-success font-bold">
                                 <CheckCircle2 className="w-3 h-3" /> Paid
                             </span>
                         )}

@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Repeat, Calendar, DollarSign, Bell, MoreVertical, Trash } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { format, parseISO } from 'date-fns';
-
+import { format, parseISO, addWeeks, addMonths, addYears } from 'date-fns';
 import { useRecurringTransactions, useUpdateRecurringTransaction, useDeleteRecurringTransaction, useAddTransaction } from '../../../hooks/useFinanceData';
 import { formatCurrency, cn } from '../../../lib/utils';
 import type { RecurringTransactionRecord, TransactionRecord } from '../../../types/pocketbase';
-
+import { EditTemplateModal } from './budget/EditTemplateModal';
+import { ConfirmModal } from '../../common/ConfirmModal';
 export function RecurringTemplates() {
     const { data: templates, isLoading } = useRecurringTransactions();
 
@@ -128,14 +128,13 @@ function TemplateCard({ template, index }: { template: RecurringTransactionRecor
             // Quick haptic
             if ('vibrate' in navigator) navigator.vibrate([50, 50, 50]);
 
-            // Update nextDate to roughly next week/month depending on frequency
-            // (A more accurate date-fns math would be ideal here)
+            // Update nextDate to strictly match mathematical date increments using date-fns
             const currentNextDate = template.nextDate ? parseISO(template.nextDate) : new Date();
-            let newNextDate = new Date(currentNextDate);
-            if (template.frequency === 'weekly') newNextDate.setDate(newNextDate.getDate() + 7);
-            else if (template.frequency === 'biweekly') newNextDate.setDate(newNextDate.getDate() + 14);
-            else if (template.frequency === 'monthly') newNextDate.setMonth(newNextDate.getMonth() + 1);
-            else if (template.frequency === 'yearly') newNextDate.setFullYear(newNextDate.getFullYear() + 1);
+            let newNextDate = currentNextDate;
+            if (template.frequency === 'weekly') newNextDate = addWeeks(currentNextDate, 1);
+            else if (template.frequency === 'biweekly') newNextDate = addWeeks(currentNextDate, 2);
+            else if (template.frequency === 'monthly') newNextDate = addMonths(currentNextDate, 1);
+            else if (template.frequency === 'yearly') newNextDate = addYears(currentNextDate, 1);
 
             await updateTemplate.mutateAsync({
                 id: template.id,
@@ -156,116 +155,139 @@ function TemplateCard({ template, index }: { template: RecurringTransactionRecor
         });
     };
 
-    const handleDelete = () => {
-        if (confirm(`Remove template for ${payeeName}?`)) {
-            deleteTemplate.mutate(template.id);
-        }
-    };
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
     return (
-        <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -10 }}
-            transition={{ delay: index * 0.05, duration: 0.3 }}
-            className="group relative bg-card rounded-2xl p-5 border border-border shadow-sm hover:shadow-md transition-all flex flex-col gap-4 overflow-hidden"
-        >
-            {/* Header info */}
-            <div className="flex justify-between items-start gap-3">
-                <div className="flex-1 min-w-0 flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/20 shrink-0">
-                        {amount > 0 ? <DollarSign className="w-5 h-5 text-success" /> : <Repeat className="w-5 h-5 text-primary" />}
-                    </div>
-                    <div className="min-w-0">
-                        <h3 className="font-semibold text-foreground truncate">{payeeName}</h3>
-                        <p className="text-xs text-muted-foreground flex items-center gap-1.5 opacity-80 mt-0.5">
-                            <span className="capitalize">{template.frequency}</span> • {categoryName}
-                        </p>
-                    </div>
-                </div>
-
-                <div className="text-right shrink-0">
-                    <div className={cn("text-lg font-bold leading-none", amount > 0 ? 'text-success' : 'text-foreground')}>
-                        {formatCurrency(Math.abs(amount))}
-                    </div>
-                    {/* Auto apply badge */}
-                    {template.autoApply ? (
-                        <div className="mt-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
-                            Auto
+        <>
+            <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                transition={{ delay: index * 0.05, duration: 0.3 }}
+                className="group relative bg-card rounded-2xl p-5 border border-border shadow-sm flex flex-col gap-4 overflow-hidden"
+            >
+                {/* Header info */}
+                <div className="flex justify-between items-start gap-3">
+                    <div className="flex-1 min-w-0 flex items-center gap-3">
+                        <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/20 shrink-0">
+                            {amount > 0 ? <DollarSign className="w-5 h-5 text-success" /> : <Repeat className="w-5 h-5 text-primary" />}
                         </div>
-                    ) : (
-                        <div className="mt-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-muted text-muted-foreground border border-border/50">
-                            Manual
+                        <div className="min-w-0">
+                            <h3 className="font-semibold text-foreground truncate">{payeeName}</h3>
+                            <div className="text-[11px] text-muted-foreground/80 mt-0.5">
+                                <span className="capitalize">{template.frequency}</span> • {categoryName}
+                            </div>
                         </div>
-                    )}
-                </div>
-            </div>
+                    </div>
 
-            {/* Next Due Section */}
-            <div className="bg-muted/30 rounded-xl p-3 border border-border/30 flex items-center justify-between gap-4 mt-auto">
-                <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-muted-foreground opacity-70" />
-                    <div className="flex flex-col">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Next Due</span>
-                        <span className="text-sm font-medium text-foreground">
-                            {template.nextDate ? format(parseISO(template.nextDate), 'MMM do, yyyy') : 'Unscheduled'}
-                        </span>
+                    <div className="text-right shrink-0">
+                        <div className={cn("text-base font-bold leading-none", amount > 0 ? 'text-success' : 'text-foreground')}>
+                            {formatCurrency(Math.abs(amount))}
+                        </div>
+                        {/* Auto apply badge */}
+                        {template.autoApply ? (
+                            <div className="mt-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
+                                Auto
+                            </div>
+                        ) : (
+                            <div className="mt-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-muted text-muted-foreground border border-border/50">
+                                Manual
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                {/* Actions */}
-                <div className="flex items-center gap-1">
-                    <button
-                        onClick={handleApplyNow}
-                        disabled={isApplying}
-                        className="py-1.5 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-bold shadow-sm hover:shadow active:scale-95 transition-all disabled:opacity-50 disabled:pointer-events-none"
-                    >
-                        {isApplying ? 'Applying...' : 'Apply Now'}
-                    </button>
+                {/* Next Due Section - Zen Palette */}
+                <div className="bg-primary/5 rounded-xl p-3 border border-primary/10 flex items-center justify-between gap-4 mt-auto">
+                    <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-md bg-background border border-border/50 shadow-sm shrink-0">
+                            <Calendar className="w-4 h-4 text-primary opacity-80" />
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-[10px] uppercase font-bold text-muted-foreground/80 tracking-widest">Next Due</span>
+                            <span className="text-sm font-semibold text-foreground">
+                                {template.nextDate ? format(parseISO(template.nextDate), 'MMM do, yyyy') : 'Unscheduled'}
+                            </span>
+                        </div>
+                    </div>
 
-                    {/* Tiny Menu */}
-                    <div className="relative">
+                    {/* Actions */}
+                    <div className="flex items-center gap-1">
                         <button
-                            onClick={() => setIsMenuOpen(!isMenuOpen)}
-                            className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted transition-colors active:scale-95"
+                            onClick={handleApplyNow}
+                            disabled={isApplying}
+                            className="py-1.5 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-bold shadow-sm hover:shadow active:scale-95 transition-all disabled:opacity-50 disabled:pointer-events-none"
                         >
-                            <MoreVertical className="w-4 h-4" />
+                            {isApplying ? 'Applying...' : 'Apply Fast'}
                         </button>
 
-                        <AnimatePresence>
-                            {isMenuOpen && (
-                                <>
-                                    <div className="fixed inset-0 z-10" onClick={() => setIsMenuOpen(false)} />
-                                    <motion.div
-                                        initial={{ opacity: 0, scale: 0.95, transformOrigin: 'top right' }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        exit={{ opacity: 0, scale: 0.95 }}
-                                        className="absolute right-0 top-full mt-1 w-48 bg-popover border border-border shadow-xl rounded-xl overflow-hidden z-20 py-1"
-                                    >
-                                        <button
-                                            onClick={() => { toggleAutoApply(); setIsMenuOpen(false); }}
-                                            className="w-full text-left px-3 py-2.5 text-sm hover:bg-accent flex items-center gap-2.5 font-medium transition-colors"
+                        {/* Tiny Menu */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                                className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted focus:ring-2 focus:ring-primary/20 focus:outline-none transition-colors active:scale-95"
+                            >
+                                <MoreVertical className="w-4 h-4" />
+                            </button>
+
+                            <AnimatePresence>
+                                {isMenuOpen && (
+                                    <>
+                                        <div className="fixed inset-0 z-10" onClick={() => setIsMenuOpen(false)} />
+                                        <motion.div
+                                            initial={{ opacity: 0, scale: 0.95, transformOrigin: 'top right' }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.95 }}
+                                            className="absolute right-0 top-full mt-1 w-48 bg-popover border border-border shadow-xl rounded-xl overflow-hidden z-20 py-1"
                                         >
-                                            <Bell className="w-4 h-4 text-muted-foreground" />
-                                            {template.autoApply ? 'Disable Auto-Apply' : 'Enable Auto-Apply'}
-                                        </button>
-                                        <div className="h-px w-full bg-border/50 my-1" />
-                                        <button
-                                            onClick={() => { handleDelete(); setIsMenuOpen(false); }}
-                                            className="w-full text-left px-3 py-2.5 text-sm hover:bg-destructive/10 text-destructive flex items-center gap-2.5 font-medium transition-colors"
-                                        >
-                                            <Trash className="w-4 h-4" />
-                                            Delete Template
-                                        </button>
-                                    </motion.div>
-                                </>
-                            )}
-                        </AnimatePresence>
+                                            <button
+                                                onClick={() => { setIsEditModalOpen(true); setIsMenuOpen(false); }}
+                                                className="w-full text-left px-3 py-2.5 text-sm hover:bg-accent flex items-center gap-2.5 font-medium transition-colors"
+                                            >
+                                                <Repeat className="w-4 h-4 text-muted-foreground" />
+                                                Edit Template
+                                            </button>
+                                            <div className="h-px w-full bg-border/50 my-1" />
+                                            <button
+                                                onClick={() => { toggleAutoApply(); setIsMenuOpen(false); }}
+                                                className="w-full text-left px-3 py-2.5 text-sm hover:bg-accent flex items-center gap-2.5 font-medium transition-colors"
+                                            >
+                                                <Bell className="w-4 h-4 text-muted-foreground" />
+                                                {template.autoApply ? 'Disable Auto-Apply' : 'Enable Auto-Apply'}
+                                            </button>
+                                            <div className="h-px w-full bg-border/50 my-1" />
+                                            <button
+                                                onClick={() => { setIsDeleteOpen(true); setIsMenuOpen(false); }}
+                                                className="w-full text-left px-3 py-2.5 text-sm hover:bg-destructive/10 text-destructive flex items-center gap-2.5 font-medium transition-colors"
+                                            >
+                                                <Trash className="w-4 h-4" />
+                                                Delete
+                                            </button>
+                                        </motion.div>
+                                    </>
+                                )}
+                            </AnimatePresence>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </motion.div>
 
-        </motion.div>
+            <EditTemplateModal
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
+                template={template}
+            />
+
+            <ConfirmModal
+                isOpen={isDeleteOpen}
+                title="Remove Template?"
+                description={`Are you sure you want to remove the recurring template for ${payeeName}?`}
+                confirmText="Remove Template"
+                onConfirm={() => deleteTemplate.mutate(template.id)}
+                onCancel={() => setIsDeleteOpen(false)}
+            />
+        </>
     );
 }
 
